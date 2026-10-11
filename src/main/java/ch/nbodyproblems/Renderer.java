@@ -1,7 +1,6 @@
 package ch.nbodyproblems;
 
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
@@ -27,7 +26,8 @@ public class Renderer {
     private final int initialHeight;
 
     private long window;
-    private Matrix4f projection;
+
+    private final PerspectiveCamera camera;
 
     private Matrix4f model;
     private TriangleMesh triangleMesh;
@@ -35,6 +35,9 @@ public class Renderer {
     public Renderer(int initialWidth, int initialHeight) {
         this.initialWidth = initialWidth;
         this.initialHeight = initialHeight;
+        float aspectRatio = (float) initialWidth / initialHeight;
+        camera = new PerspectiveCamera(0.1f, 1e4f, aspectRatio, 60f);
+        camera.setPosition(0f, 0f, -4f);
     }
 
     public void init() {
@@ -49,19 +52,12 @@ public class Renderer {
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
         window = glfwCreateWindow(initialWidth, initialHeight, "NBP", NULL, NULL);
-        updateProjectionMatrix((float) initialWidth, initialHeight);
 
         if (window == NULL) throw new IllegalStateException("Unable to create GLFW window");
 
         glfwSetFramebufferSizeCallback(window, (win, width, height) -> {
             glViewport(0, 0, width, height);
-            updateProjectionMatrix((float) width, height);
-        });
-
-        glfwSetKeyCallback(window, (handle, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-                glfwSetWindowShouldClose(handle, true);
-            }
+            camera.setAspectRatio((float) width / (float) height);
         });
 
         glfwMakeContextCurrent(window);
@@ -73,17 +69,8 @@ public class Renderer {
         initTriangle();
     }
 
-    private void updateProjectionMatrix(float width, int height) {
-        projection = new Matrix4f().perspective(
-                (float) Math.toRadians(60.0f),
-                width / height,
-                0.1f, 10_000.0f
-        );
-    }
-
     public void loop() {
         int shader = createShaderProgram();
-        Matrix4f view = new Matrix4f();
 
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
@@ -91,22 +78,14 @@ public class Renderer {
             glClearColor(0f, 0f, 0f, 1f);
             glClear(GL_COLOR_BUFFER_BIT);
 
-            view.identity().lookAt(
-                    new Vector3f(0, 0, -3),
-                    new Vector3f(0, 0, 0),
-                    new Vector3f(0, 1, 0)
-            );
-
             int projLoc = glGetUniformLocation(shader, "projection");
-            int viewLoc = glGetUniformLocation(shader, "view");
             int modelLoc = glGetUniformLocation(shader, "model");
 
             glUseProgram(shader);
 
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 FloatBuffer fb = stack.mallocFloat(16);
-                glUniformMatrix4fv(projLoc, false, projection.get(fb));
-                glUniformMatrix4fv(viewLoc, false, view.get(fb));
+                glUniformMatrix4fv(projLoc, false, camera.getProjection().get(fb));
                 glUniformMatrix4fv(modelLoc, false, model.get(fb));
             }
 
