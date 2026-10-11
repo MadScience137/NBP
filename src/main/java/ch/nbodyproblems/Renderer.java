@@ -6,22 +6,17 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.system.MemoryStack;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.FloatBuffer;
-import java.nio.charset.StandardCharsets;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL20.glDeleteBuffers;
+import static org.lwjgl.opengl.GL20.glUseProgram;
 import static org.lwjgl.opengl.GL30.glBindVertexArray;
 import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class Renderer {
-    private static final String VERTEX_SHADER_PATH = "/shaders/triangle.vert";
-    private static final String FRAGMENT_SHADER_PATH = "/shaders/triangle.frag";
-
     private final int initialWidth;
     private final int initialHeight;
 
@@ -31,6 +26,7 @@ public class Renderer {
 
     private Matrix4f model;
     private TriangleMesh triangleMesh;
+    private DefaultMaterial material;
 
     public Renderer(int initialWidth, int initialHeight) {
         this.initialWidth = initialWidth;
@@ -70,24 +66,16 @@ public class Renderer {
     }
 
     public void loop() {
-        int shader = createShaderProgram();
-
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
 
             glClearColor(0f, 0f, 0f, 1f);
             glClear(GL_COLOR_BUFFER_BIT);
 
-            int projLoc = glGetUniformLocation(shader, "projection");
-            int modelLoc = glGetUniformLocation(shader, "model");
-
-            glUseProgram(shader);
-
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                FloatBuffer fb = stack.mallocFloat(16);
-                glUniformMatrix4fv(projLoc, false, camera.getProjection().get(fb));
-                glUniformMatrix4fv(modelLoc, false, model.get(fb));
-            }
+            glUseProgram(material.shaderProgram);
+            material.setModelMatrix(model);
+            material.setProjectionMatrix(camera.getProjection());
+            material.updateShaderData();
 
             glBindVertexArray(triangleMesh.vao);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -101,15 +89,6 @@ public class Renderer {
         glDeleteVertexArrays(triangleMesh.vao);
         glfwDestroyWindow(window);
         glfwTerminate();
-    }
-
-    private static String loadResource(String path) {
-        try (InputStream inputStream = Main.class.getResourceAsStream(path)) {
-            if (inputStream == null) throw new IllegalStateException("Resource not found: " + path);
-            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to read resource: " + path, e);
-        }
     }
 
     private void initTriangle() {
@@ -131,28 +110,7 @@ public class Renderer {
                 .translate(0f, 0f, 0f)
                 .rotateXYZ(0f, 0f, 0f)
                 .scale(1f);
-    }
 
-    private static int createShaderProgram() {
-        String vertexSource = loadResource(VERTEX_SHADER_PATH);
-        String fragmentSource = loadResource(FRAGMENT_SHADER_PATH);
-
-        int vs = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vs, vertexSource);
-        glCompileShader(vs);
-
-        int fs = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fs, fragmentSource);
-        glCompileShader(fs);
-
-        int program = glCreateProgram();
-        glAttachShader(program, vs);
-        glAttachShader(program, fs);
-        glLinkProgram(program);
-
-        glDeleteShader(vs);
-        glDeleteShader(fs);
-
-        return program;
+        material = new DefaultMaterial();
     }
 }
