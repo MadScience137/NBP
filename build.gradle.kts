@@ -4,7 +4,7 @@ plugins {
     application
 }
 
-group = "ch.zhaw"
+group = "ch.nbodyproblems"
 version = "1.0-SNAPSHOT"
 
 val lwjglVersion = "3.4.3"
@@ -35,7 +35,7 @@ dependencies {
 }
 
 application {
-    mainClass = "ch.zhaw.Main"
+    mainClass = "ch.nbodyproblems.Main"
 }
 
 idea {
