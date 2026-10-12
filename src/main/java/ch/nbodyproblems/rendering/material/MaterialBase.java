@@ -1,56 +1,97 @@
 package ch.nbodyproblems.rendering.material;
 
-import lombok.Getter;
-import lombok.Setter;
+import ch.nbodyproblems.rendering.material.property.MaterialProperty;
+import ch.nbodyproblems.rendering.material.property.matrix.Matrix4fMaterialProperty;
 import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryStack;
 
-import java.nio.FloatBuffer;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static ch.nbodyproblems.util.ResourceLoader.loadResource;
 import static org.lwjgl.opengl.GL20.*;
 
 public abstract class MaterialBase {
     public final int shaderProgram;
-    private final int projLoc;
-    private final int transformLoc;
+    private final Runnable refreshDataTask;
 
-    @Getter
-    @Setter
-    protected Matrix4f transformMatrix = new Matrix4f();
-    @Getter
-    @Setter
-    protected Matrix4f projectionMatrix = new Matrix4f();
+    protected Matrix4fMaterialProperty transformMatrix = new Matrix4fMaterialProperty("transform");
+
+    protected Matrix4fMaterialProperty projectionMatrix = new Matrix4fMaterialProperty("projection");
 
     public MaterialBase(String vertexSource, String fragmentSource) {
-        int vs = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vs, loadResource(vertexSource));
-        glCompileShader(vs);
+        int vs = initShader(GL_VERTEX_SHADER, vertexSource);
+        int fs = initShader(GL_FRAGMENT_SHADER, fragmentSource);
 
-        int fs = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fs, loadResource(fragmentSource));
-        glCompileShader(fs);
-
-        shaderProgram = glCreateProgram();
-        glAttachShader(shaderProgram, vs);
-        glAttachShader(shaderProgram, fs);
-        glLinkProgram(shaderProgram);
+        shaderProgram = initShaderProgram(vs, fs);
 
         glDeleteShader(vs);
         glDeleteShader(fs);
 
-        projLoc = glGetUniformLocation(shaderProgram, "projection");
-        transformLoc = glGetUniformLocation(shaderProgram, "transform");
+        refreshDataTask = createDataRefreshTask();
+    }
+
+    private Runnable createDataRefreshTask() {
+        Field[] fields = findMaterialPropertyFields();
+
+        return () -> {
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                for (Field field : fields) {
+                    try {
+                        ((MaterialProperty<?>) field.get(this)).updateShaderData(stack, shaderProgram);
+                    } catch (IllegalAccessException e) {
+                        throw new IllegalStateException(e);
+                    }
+                }
+            }
+        };
+    }
+
+    private Field[] findMaterialPropertyFields() {
+        List<Field> fields = new ArrayList<>();
+
+        for (Class<?> type = getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+            fields.addAll(
+                    Arrays.stream(type.getDeclaredFields())
+                            .filter(f -> !Modifier.isStatic(f.getModifiers()))
+                            .filter(f -> !f.isSynthetic())
+                            .filter(f -> MaterialProperty.class.isAssignableFrom(f.getType()))
+                            .filter(Field::trySetAccessible)
+                            .toList()
+            );
+        }
+
+        return fields.toArray(Field[]::new);
+    }
+
+    private int initShaderProgram(int vs, int fs) {
+        final int shaderProgram;
+        shaderProgram = glCreateProgram();
+        glAttachShader(shaderProgram, vs);
+        glAttachShader(shaderProgram, fs);
+        glLinkProgram(shaderProgram);
+        return shaderProgram;
+    }
+
+    private static int initShader(int glVertexShader, String vertexSource) {
+        int vs = glCreateShader(glVertexShader);
+        glShaderSource(vs, loadResource(vertexSource));
+        glCompileShader(vs);
+        return vs;
     }
 
     public final void updateShaderData() {
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            FloatBuffer fb = stack.mallocFloat(16);
-            glUniformMatrix4fv(projLoc, false, projectionMatrix.get(fb));
-            glUniformMatrix4fv(transformLoc, false, transformMatrix.get(fb));
-            refreshShaderData(stack);
-        }
+        refreshDataTask.run();
     }
 
-    protected abstract void refreshShaderData(MemoryStack stack);
+    public void setTransformMatrix(Matrix4f objectTransform) {
+        transformMatrix.set(objectTransform);
+    }
+
+    public void setProjectionMatrix(Matrix4f projection) {
+        projectionMatrix.set(projection);
+    }
 }

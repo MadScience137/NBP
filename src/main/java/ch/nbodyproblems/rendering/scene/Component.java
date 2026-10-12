@@ -7,5 +7,4 @@ public abstract class Component {
     @Getter
     @Setter
     private boolean enabled = true;
-    public void destroy() {}
 }
