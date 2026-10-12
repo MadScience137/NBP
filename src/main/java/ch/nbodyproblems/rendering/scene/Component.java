@@ -1,5 +1,11 @@
 package ch.nbodyproblems.rendering.scene;
 
-public interface Component {
-    default void destroy() {}
+import lombok.Getter;
+import lombok.Setter;
+
+public abstract class Component {
+    @Getter
+    @Setter
+    private boolean enabled = true;
+    public void destroy() {}
 }

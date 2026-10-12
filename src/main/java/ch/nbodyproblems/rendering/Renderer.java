@@ -45,7 +45,7 @@ public class Renderer {
         this.height = initialHeight;
         float aspectRatio = (float) initialWidth / initialHeight;
         camera = new PerspectiveCamera(0.1f, 1e4f, aspectRatio, 60f);
-        camera.setPosition(0f, 0f, -4f);
+        camera.setPosition(0f, 0f, -5f);
     }
 
     public void init() {
@@ -144,9 +144,11 @@ public class Renderer {
     }
 
     private void initScene() {
-        sceneObjects.add(new Quad(0.1f, 0.2f, 0.4f, 1f));
-        sceneObjects.add(new Quad(0.4f, 0.2f, 0.1f, 1f));
-        sceneObjects.get(1).setPosition(1, 0, -1);
+        GameObject quad1 = new Quad(0.1f, 0.2f, 0.4f, 1f);
+        GameObject quad2 = new Quad(0.4f, 0.2f, 0.1f, 1f);
+        quad2.setPosition(1, 0, -1);
+        quad1.addChild(quad2);
+        sceneObjects.add(quad1);
     }
 
     private boolean frameBufferUpdateRequired() {
@@ -157,8 +159,13 @@ public class Renderer {
 
     public void loop() {
         Matrix4f rootTransform = new Matrix4f().translate(0f, 0f, 0f).scale(1);
+        long lastFrameTime = System.nanoTime();
 
         while (!glfwWindowShouldClose(window)) {
+            long nowNano = System.nanoTime();
+            double delta = (nowNano - lastFrameTime) / 1e9;
+            lastFrameTime = nowNano;
+
             glfwPollEvents();
 
             if (width <= 0 || height <= 0) {
@@ -176,7 +183,7 @@ public class Renderer {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             for (GameObject object : sceneObjects) {
-                drawSceneObject(object, rootTransform);
+                traverseSceneObjects(object, rootTransform, (double) nowNano / 1e9, delta);
             }
 
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -193,7 +200,8 @@ public class Renderer {
         }
     }
 
-    private void drawSceneObject(GameObject object, Matrix4f parentTransform) {
+    private void traverseSceneObjects(GameObject object, Matrix4f parentTransform, double now, double delta) {
+        object.tick(now, delta);
         Matrix4f objectTransform = new Matrix4f(parentTransform).mul(object.getTransform());
 
         if (object.hasComponent(MeshComponent.class)) {
@@ -210,7 +218,7 @@ public class Renderer {
         }
 
         for (GameObject child : object.getChildren()) {
-            drawSceneObject(child, objectTransform);
+            traverseSceneObjects(child, objectTransform, now, delta);
         }
     }
 

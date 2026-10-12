@@ -5,10 +5,7 @@ import lombok.Setter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public abstract class GameObject implements Tickable {
     @Setter
@@ -21,12 +18,24 @@ public abstract class GameObject implements Tickable {
             .rotateXYZ(0f, 0f, 0f)
             .scale(1f);
 
+    private GameObject parent;
     private final List<GameObject> children = new ArrayList<>();
 
     private final Map<Class<? extends Component>, Component> components = new HashMap<>();
 
     @Override
-    public void tick(double time, double deltaTime) {
+    public final void tick(double time, double deltaTime) {
+        if (enabled) {
+            update(time, deltaTime);
+            components.values().stream()
+                    .filter(Component::isEnabled)
+                    .filter(TickableComponent.class::isInstance)
+                    .map(TickableComponent.class::cast)
+                    .forEach(c -> c.tick(time, deltaTime));
+        }
+    }
+
+    protected void update(double time, double deltaTime) {
     }
 
     public void addComponent(Component component) {
@@ -37,20 +46,46 @@ public abstract class GameObject implements Tickable {
         return (T) components.get(componentClass);
     }
 
+    public void removeComponent(Class<? extends Component> componentClass) {
+        components.remove(componentClass);
+    }
+
+    public <T extends Component> List<T> getComponents(Class<T> componentClass) {
+        return components.values().stream()
+                .filter(componentClass::isInstance)
+                .map(componentClass::cast)
+                .toList();
+    }
+
     public boolean hasComponent(Class<? extends Component> componentClass) {
         return components.containsKey(componentClass);
     }
 
+    public Optional<GameObject> getParent() {
+        return Optional.ofNullable(parent);
+    }
+
     public void addChild(GameObject child) {
+        if (child == this) throw new IllegalArgumentException("Child cannot be itself");
+        if (child.parent != null) throw new IllegalArgumentException("Child is already attached");
+        child.parent = this;
         children.add(child);
     }
 
     public void removeChild(GameObject child) {
+        child.parent = null;
         children.remove(child);
     }
 
     public List<GameObject> getChildren() {
         return List.copyOf(children);
+    }
+
+    public <T extends Component> List<T> getChildren(Class<T> childClass) {
+        return children.stream()
+                .filter(childClass::isInstance)
+                .map(childClass::cast)
+                .toList();
     }
 
     public void setTransform(Matrix4f transform) {

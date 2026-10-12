@@ -5,7 +5,7 @@ import ch.nbodyproblems.rendering.scene.Component;
 import lombok.Getter;
 import lombok.Setter;
 
-public class MeshComponent implements Component {
+public class MeshComponent extends Component {
     @Getter
     @Setter
     private TriangleMesh mesh;
