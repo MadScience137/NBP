@@ -9,31 +9,40 @@ import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
+import org.lwjgl.system.MemoryStack;
 
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15C.glDeleteBuffers;
+import static org.lwjgl.opengl.GL20.GL_LOWER_LEFT;
 import static org.lwjgl.opengl.GL20.glUseProgram;
-import static org.lwjgl.opengl.GL30.glBindVertexArray;
-import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
+import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.opengl.GL45.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class Renderer {
-    private final int initialWidth;
-    private final int initialHeight;
+    private int width;
+    private int height;
+    private int framebufferWidth;
+    private int framebufferHeight;
 
     private long window;
+    private long lastResizeNano;
 
     private final PerspectiveCamera camera;
 
     private List<GameObject> sceneObjects = new ArrayList<>();
+    private int framebuffer;
+    private int colorTexture;
+    private int depthTexture;
 
     public Renderer(int initialWidth, int initialHeight) {
-        this.initialWidth = initialWidth;
-        this.initialHeight = initialHeight;
+        this.width = initialWidth;
+        this.height = initialHeight;
         float aspectRatio = (float) initialWidth / initialHeight;
         camera = new PerspectiveCamera(0.1f, 1e4f, aspectRatio, 60f);
         camera.setPosition(0f, 0f, -4f);
@@ -49,27 +58,101 @@ public class Renderer {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_DEPTH_BITS, 0);
 
-        window = glfwCreateWindow(initialWidth, initialHeight, "NBP", NULL, NULL);
+        window = glfwCreateWindow(width, height, "NBP", NULL, NULL);
 
         if (window == NULL) throw new IllegalStateException("Unable to create GLFW window");
 
         glfwSetFramebufferSizeCallback(window, (win, width, height) -> {
-            glViewport(0, 0, width, height);
-            camera.setAspectRatio((float) width / (float) height);
+            this.width = width;
+            this.height = height;
+            lastResizeNano = System.nanoTime();
         });
 
         glfwMakeContextCurrent(window);
-        glfwShowWindow(window);
 
         GLCapabilities capabilities = GL.createCapabilities();
         if (!capabilities.OpenGL45) throw new IllegalStateException("OpenGL 4.5 is required");
 
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer pixelWidth = stack.mallocInt(1);
+            IntBuffer pixelHeight = stack.mallocInt(1);
+            glfwGetFramebufferSize(window, pixelWidth, pixelHeight);
+            width = pixelWidth.get(0);
+            height = pixelHeight.get(0);
+        }
+
+        initFrameBuffer();
         initScene();
+        glfwShowWindow(window);
+    }
+
+    private void initFrameBuffer() {
+        glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_GREATER);
+        glDepthMask(true);
+        glClearDepth(0.0);
+
+        framebuffer = glCreateFramebuffers();
+        updateFrameBuffer();
+    }
+
+    private void updateFrameBuffer() {
+        destroyFrameTextures();
+        depthTexture = glCreateTextures(GL_TEXTURE_2D);
+        colorTexture = glCreateTextures(GL_TEXTURE_2D);
+
+        glTextureStorage2D(
+                colorTexture,
+                1,
+                GL_RGBA8,
+                width,
+                height
+        );
+
+        glTextureStorage2D(
+                depthTexture,
+                1,
+                GL_DEPTH_COMPONENT32F,
+                width,
+                height
+        );
+
+        glNamedFramebufferTexture(
+                framebuffer,
+                GL_DEPTH_ATTACHMENT,
+                depthTexture,
+                0
+        );
+
+        glNamedFramebufferTexture(
+                framebuffer,
+                GL_COLOR_ATTACHMENT0,
+                colorTexture,
+                0
+        );
+
+        if (glCheckNamedFramebufferStatus(framebuffer, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            throw new IllegalStateException("Render framebuffer is incomplete");
+        }
+
+        framebufferWidth = width;
+        framebufferHeight = height;
+        camera.setAspectRatio((float) framebufferWidth / framebufferHeight);
     }
 
     private void initScene() {
         sceneObjects.add(new Quad(0.1f, 0.2f, 0.4f, 1f));
+        sceneObjects.add(new Quad(0.4f, 0.2f, 0.1f, 1f));
+        sceneObjects.get(1).setPosition(1, 0, -1);
+    }
+
+    private boolean frameBufferUpdateRequired() {
+        return (width != framebufferWidth || height != framebufferHeight)
+                && width > 0 && height > 0
+                && System.nanoTime() - lastResizeNano > 8e7;
     }
 
     public void loop() {
@@ -78,12 +161,33 @@ public class Renderer {
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
 
+            if (width <= 0 || height <= 0) {
+                glfwWaitEvents();
+                continue;
+            }
+
+            if (frameBufferUpdateRequired()) {
+                updateFrameBuffer();
+            }
+
+            glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+            glViewport(0, 0, framebufferWidth, framebufferHeight);
             glClearColor(0f, 0f, 0f, 1f);
-            glClear(GL_COLOR_BUFFER_BIT);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             for (GameObject object : sceneObjects) {
                 drawSceneObject(object, rootTransform);
             }
+
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBlitNamedFramebuffer(
+                    framebuffer,
+                    0,
+                    0, 0, framebufferWidth, framebufferHeight,
+                    0, 0, width, height,
+                    GL_COLOR_BUFFER_BIT,
+                    GL_NEAREST
+            );
 
             glfwSwapBuffers(window);
         }
@@ -110,10 +214,22 @@ public class Renderer {
         }
     }
 
+    private void destroyFrameBuffer() {
+        glDeleteFramebuffers(framebuffer);
+        destroyFrameTextures();
+    }
+
+    private void destroyFrameTextures() {
+        if (colorTexture == 0 || depthTexture == 0) return;
+        glDeleteTextures(colorTexture);
+        glDeleteTextures(depthTexture);
+    }
+
     public void cleanup() {
         for (GameObject object : sceneObjects) {
             cleanUpSceneObject(object);
         }
+        destroyFrameBuffer();
         glfwDestroyWindow(window);
         glfwTerminate();
     }

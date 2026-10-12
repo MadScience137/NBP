@@ -71,7 +71,8 @@ public class PerspectiveCamera {
         projection = new Matrix4f().perspective(
                 (float) Math.toRadians(fov),
                 aspectRatio,
-                nearCLip, farCLip
+                farCLip, nearCLip,
+                true
         ).mul(
                 new Matrix4f()
                         .rotateXYZ(rotation)
