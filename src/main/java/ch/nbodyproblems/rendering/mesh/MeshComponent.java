@@ -1,5 +1,7 @@
-package ch.nbodyproblems;
+package ch.nbodyproblems.rendering.mesh;
 
+import ch.nbodyproblems.rendering.material.MaterialBase;
+import ch.nbodyproblems.rendering.scene.Component;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,7 +13,7 @@ public class MeshComponent implements Component {
     @Setter
     private MaterialBase material;
 
-    protected MeshComponent(TriangleMesh mesh, MaterialBase material) {
+    public MeshComponent(TriangleMesh mesh, MaterialBase material) {
         this.mesh = mesh;
         this.material = material;
     }

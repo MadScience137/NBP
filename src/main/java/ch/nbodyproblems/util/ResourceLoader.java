@@ -1,4 +1,6 @@
-package ch.nbodyproblems;
+package ch.nbodyproblems.util;
+
+import ch.nbodyproblems.Main;
 
 import java.io.IOException;
 import java.io.InputStream;

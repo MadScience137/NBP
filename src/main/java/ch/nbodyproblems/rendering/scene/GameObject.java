@@ -1,4 +1,4 @@
-package ch.nbodyproblems;
+package ch.nbodyproblems.rendering.scene;
 
 import lombok.Getter;
 import lombok.Setter;

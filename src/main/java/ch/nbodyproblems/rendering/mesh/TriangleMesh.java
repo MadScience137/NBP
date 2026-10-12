@@ -1,4 +1,4 @@
-package ch.nbodyproblems;
+package ch.nbodyproblems.rendering.mesh;
 
 import org.lwjgl.system.MemoryStack;
 

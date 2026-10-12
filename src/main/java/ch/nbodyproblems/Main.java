@@ -1,5 +1,7 @@
 package ch.nbodyproblems;
 
+import ch.nbodyproblems.rendering.Renderer;
+
 public class Main {
     static void main(String[] args) {
         Renderer renderer = new Renderer(800, 600);

@@ -1,4 +1,4 @@
-package ch.nbodyproblems;
+package ch.nbodyproblems.rendering;
 
 import lombok.Getter;
 import org.joml.Matrix4f;

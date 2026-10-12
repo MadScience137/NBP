@@ -1,4 +1,4 @@
-package ch.nbodyproblems;
+package ch.nbodyproblems.rendering.scene;
 
 @FunctionalInterface
 public interface Tickable {

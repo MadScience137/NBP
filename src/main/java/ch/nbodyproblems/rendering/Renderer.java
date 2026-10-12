@@ -1,5 +1,11 @@
-package ch.nbodyproblems;
+package ch.nbodyproblems.rendering;
 
+import ch.nbodyproblems.rendering.material.MaterialBase;
+import ch.nbodyproblems.rendering.mesh.MeshComponent;
+import ch.nbodyproblems.rendering.mesh.TriangleMesh;
+import ch.nbodyproblems.rendering.mesh.primitives.Quad;
+import ch.nbodyproblems.rendering.scene.GameObject;
+import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
@@ -63,10 +69,12 @@ public class Renderer {
     }
 
     private void initScene() {
-        sceneObjects.add(new Quad());
+        sceneObjects.add(new Quad(0.1f, 0.2f, 0.4f, 1f));
     }
 
     public void loop() {
+        Matrix4f rootTransform = new Matrix4f().translate(0f, 0f, 0f).scale(1);
+
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
 
@@ -74,20 +82,22 @@ public class Renderer {
             glClear(GL_COLOR_BUFFER_BIT);
 
             for (GameObject object : sceneObjects) {
-                drawSceneObject(object);
+                drawSceneObject(object, rootTransform);
             }
 
             glfwSwapBuffers(window);
         }
     }
 
-    private void drawSceneObject(GameObject object) {
+    private void drawSceneObject(GameObject object, Matrix4f parentTransform) {
+        Matrix4f objectTransform = new Matrix4f(parentTransform).mul(object.getTransform());
+
         if (object.hasComponent(MeshComponent.class)) {
             MeshComponent meshComponent = object.getComponent(MeshComponent.class);
 
             MaterialBase material = meshComponent.getMaterial();
             glUseProgram(material.shaderProgram);
-            material.setModelMatrix(object.getTransform());
+            material.setTransformMatrix(objectTransform);
             material.setProjectionMatrix(camera.getProjection());
             material.updateShaderData();
 
@@ -96,7 +106,7 @@ public class Renderer {
         }
 
         for (GameObject child : object.getChildren()) {
-            drawSceneObject(child);
+            drawSceneObject(child, objectTransform);
         }
     }
 
