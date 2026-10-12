@@ -201,20 +201,24 @@ public class Renderer {
     }
 
     private void traverseSceneObjects(GameObject object, Matrix4f parentTransform, double now, double delta) {
+        if (!object.isEnabled()) return;
+
         object.tick(now, delta);
         Matrix4f objectTransform = new Matrix4f(parentTransform).mul(object.getTransform());
 
         if (object.hasComponent(MeshComponent.class)) {
             MeshComponent meshComponent = object.getComponent(MeshComponent.class);
 
-            MaterialBase material = meshComponent.getMaterial();
-            glUseProgram(material.shaderProgram);
-            material.setTransformMatrix(objectTransform);
-            material.setProjectionMatrix(camera.getProjection());
-            material.updateShaderData();
+            if (meshComponent.isEnabled()) {
+                MaterialBase material = meshComponent.getMaterial();
+                glUseProgram(material.shaderProgram);
+                material.setTransformMatrix(objectTransform);
+                material.setProjectionMatrix(camera.getProjection());
+                material.updateShaderData();
 
-            glBindVertexArray(meshComponent.getMesh().vao);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                glBindVertexArray(meshComponent.getMesh().vao);
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            }
         }
 
         for (GameObject child : object.getChildren()) {
