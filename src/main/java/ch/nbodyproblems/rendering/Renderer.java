@@ -1,5 +1,7 @@
 package ch.nbodyproblems.rendering;
 
+import ch.nbodyproblems.input.InputSystem;
+import ch.nbodyproblems.input.action.AxisInputAction;
 import ch.nbodyproblems.rendering.material.MaterialBase;
 import ch.nbodyproblems.rendering.mesh.MeshComponent;
 import ch.nbodyproblems.rendering.mesh.TriangleMesh;
@@ -15,6 +17,8 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import static ch.nbodyproblems.input.InputContext.EDITOR;
+import static ch.nbodyproblems.input.action.TriggerInputAction.CAMERA_RESET;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15C.glDeleteBuffers;
@@ -39,6 +43,8 @@ public class Renderer {
     private int framebuffer;
     private int colorTexture;
     private int depthTexture;
+
+    private InputSystem inputSystem;
 
     public Renderer(int initialWidth, int initialHeight) {
         this.width = initialWidth;
@@ -84,8 +90,15 @@ public class Renderer {
         }
 
         initFrameBuffer();
+        initInputSystem();
         initScene();
         glfwShowWindow(window);
+    }
+
+    private void initInputSystem() {
+        inputSystem = new InputSystem(window);
+        inputSystem.switchContext(EDITOR);
+        inputSystem.addOnAction(CAMERA_RESET, camera::reset);
     }
 
     private void initFrameBuffer() {
@@ -163,15 +176,30 @@ public class Renderer {
 
         while (!glfwWindowShouldClose(window)) {
             long nowNano = System.nanoTime();
+            double nowSeconds = nowNano / 1e9;
             double delta = (nowNano - lastFrameTime) / 1e9;
             lastFrameTime = nowNano;
 
+            inputSystem.clearAxisActivations();
             glfwPollEvents();
+            inputSystem.tick(nowSeconds, delta);
 
             if (width <= 0 || height <= 0) {
                 glfwWaitEvents();
                 continue;
             }
+
+            camera.moveLocal(
+                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_LATERAL),
+                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_VERTICAL),
+                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_LONGITUDINAL)
+            );
+            camera.rotate(
+                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_ROTATE_PITCH),
+                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_ROTATE_YAW),
+                    0f
+            );
+            camera.updateProjectionMatrix();
 
             if (frameBufferUpdateRequired()) {
                 updateFrameBuffer();
@@ -183,7 +211,7 @@ public class Renderer {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             for (GameObject object : sceneObjects) {
-                traverseSceneObjects(object, rootTransform, (double) nowNano / 1e9, delta);
+                traverseSceneObjects(object, rootTransform, nowSeconds, delta);
             }
 
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -213,7 +241,7 @@ public class Renderer {
                 MaterialBase material = meshComponent.getMaterial();
                 glUseProgram(material.shaderProgram);
                 material.setTransformMatrix(objectTransform);
-                material.setProjectionMatrix(camera.getProjection());
+                material.setProjectionMatrix(camera.getProjectionMatrix());
                 material.updateShaderData();
 
                 glBindVertexArray(meshComponent.getMesh().vao);
