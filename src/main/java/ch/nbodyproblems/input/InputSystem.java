@@ -9,6 +9,7 @@ import ch.nbodyproblems.input.button.InputButton;
 import ch.nbodyproblems.input.button.KeyCode;
 import ch.nbodyproblems.input.button.MouseButton;
 import ch.nbodyproblems.rendering.scene.Tickable;
+import lombok.Getter;
 import org.joml.Vector2d;
 
 import java.util.*;
@@ -18,6 +19,13 @@ import static org.lwjgl.glfw.GLFW.*;
 public class InputSystem implements Tickable {
     private static final double EPSILON = 1e-5;
     private static final float TRIGGER_HOLD_TIME = 0.5f;
+
+    private final long window;
+    @Getter
+    private boolean mouseCaptured;
+    private boolean cursorModeChanging;
+    private boolean mousePositionValid;
+    private boolean focused;
 
     private final Set<TriggerInputAction> activeActions = new HashSet<>();
     private final Map<InputButton, Double> activeButtonTimes = new HashMap<>();
@@ -33,11 +41,44 @@ public class InputSystem implements Tickable {
     private final Vector2d mousePosition = new Vector2d();
 
     public InputSystem(long window) {
+        this.window = window;
+        focused = glfwGetWindowAttrib(window, GLFW_FOCUSED) == GLFW_TRUE;
         setBindings(DefaultBindings.BINDINGS);
         glfwSetKeyCallback(window, this::handleKey);
         glfwSetCursorPosCallback(window, this::handleMouseMove);
         glfwSetMouseButtonCallback(window, this::handleMouseButton);
         glfwSetScrollCallback(window, this::handleScroll);
+        glfwSetWindowFocusCallback(window, this::handleFocus);
+
+        if (glfwRawMouseMotionSupported()) {
+            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        }
+    }
+
+    public void setMouseCaptured(boolean captured) {
+        if (mouseCaptured == captured || (captured && !focused)) return;
+
+        cursorModeChanging = true;
+        mousePositionValid = false;
+        clearAxisActivations();
+        try {
+            glfwSetInputMode(window, GLFW_CURSOR, captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+            mouseCaptured = captured;
+        } finally {
+            cursorModeChanging = false;
+            mousePositionValid = false;
+        }
+    }
+
+    private void handleFocus(long win, boolean focused) {
+        this.focused = focused;
+        mousePositionValid = false;
+
+        if (!focused) {
+            setMouseCaptured(false);
+            releaseKeys();
+            clearAxisActivations();
+        }
     }
 
     @Override
@@ -73,11 +114,19 @@ public class InputSystem implements Tickable {
 
 
     private void handleMouseMove(long win, double x, double y) {
+        if (cursorModeChanging || !focused) return;
+
+        if (!mousePositionValid) {
+            mousePosition.set(x, y);
+            mousePositionValid = true;
+            return;
+        }
+
         double axisDeltaX = mousePosition.x - x;
 
         if (Math.abs(axisDeltaX) > EPSILON && axisBindings.containsKey(MouseAxis.MOUSE_X)) {
             for (AxisBinding binding : axisBindings.get(MouseAxis.MOUSE_X)) {
-                if (requiredModifierMissing(binding)) continue;
+                if (!axisBindingEligible(binding)) continue;
                 double axisInput = Math.toRadians(axisDeltaX) * binding.sensitivity() * binding.directionFactor();
                 inputAxis.merge(binding.action(), axisInput, Double::sum);
             }
@@ -87,7 +136,7 @@ public class InputSystem implements Tickable {
 
         if (Math.abs(axisDeltaY) > EPSILON && axisBindings.containsKey(MouseAxis.MOUSE_Y)) {
             for (AxisBinding binding : axisBindings.get(MouseAxis.MOUSE_Y)) {
-                if (requiredModifierMissing(binding)) continue;
+                if (!axisBindingEligible(binding)) continue;
                 double axisInput = Math.toRadians(axisDeltaY) * binding.sensitivity() * binding.directionFactor();
                 inputAxis.merge(binding.action(), axisInput, Double::sum);
             }
@@ -141,6 +190,7 @@ public class InputSystem implements Tickable {
     private void handleScroll(long win, double xOffset, double yOffset) {
         if (Math.abs(yOffset) > EPSILON && axisBindings.containsKey(MouseAxis.SCROLL_Y)) {
             for (AxisBinding binding : axisBindings.get(MouseAxis.SCROLL_Y)) {
+                if (!axisBindingEligible(binding)) continue;
                 double axisInput = yOffset * binding.sensitivity() * binding.directionFactor();
                 inputAxis.merge(binding.action(), axisInput, Double::sum);
             }
@@ -148,6 +198,7 @@ public class InputSystem implements Tickable {
 
         if (Math.abs(xOffset) > EPSILON && axisBindings.containsKey(MouseAxis.SCROLL_X)) {
             for (AxisBinding binding : axisBindings.get(MouseAxis.SCROLL_X)) {
+                if (!axisBindingEligible(binding)) continue;
                 double axisInput = xOffset * binding.sensitivity() * binding.directionFactor();
                 inputAxis.merge(binding.action(), axisInput, Double::sum);
             }
@@ -178,6 +229,9 @@ public class InputSystem implements Tickable {
     }
 
     public void switchContext(InputContext context) {
+        if (activeContext != context) setMouseCaptured(false);
+        mousePositionValid = false;
+        clearAxisActivations();
         activeContext = context;
         buttonBindings.clear();
         axisButtonBindings.clear();
@@ -232,6 +286,10 @@ public class InputSystem implements Tickable {
 
     private boolean requiredModifierMissing(InputBinding binding) {
         return binding.hasModifier() && !activeButtonTimes.containsKey(binding.modifier());
+    }
+
+    private boolean axisBindingEligible(AxisBinding binding) {
+        return binding.cursorRequirement().matches(mouseCaptured) && !requiredModifierMissing(binding);
     }
 
     public double getAxisActivation(AxisInputAction action) {

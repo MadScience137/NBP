@@ -7,6 +7,7 @@ import ch.nbodyproblems.rendering.mesh.MeshComponent;
 import ch.nbodyproblems.rendering.mesh.TriangleMesh;
 import ch.nbodyproblems.rendering.mesh.primitives.Quad;
 import ch.nbodyproblems.rendering.scene.GameObject;
+import ch.nbodyproblems.rendering.scene.PerspectiveCamera;
 import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
@@ -18,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static ch.nbodyproblems.input.InputContext.EDITOR;
-import static ch.nbodyproblems.input.action.TriggerInputAction.CAMERA_RESET;
+import static ch.nbodyproblems.input.action.TriggerInputAction.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15C.glDeleteBuffers;
@@ -99,6 +100,8 @@ public class Renderer {
         inputSystem = new InputSystem(window);
         inputSystem.switchContext(EDITOR);
         inputSystem.addOnAction(CAMERA_RESET, camera::reset);
+        inputSystem.addOnAction(MOUSE_CAPTURE_TOGGLE, () -> inputSystem.setMouseCaptured(!inputSystem.isMouseCaptured()));
+        inputSystem.addOnAction(MOUSE_CAPTURE_RELEASE, () -> inputSystem.setMouseCaptured(false));
     }
 
     private void initFrameBuffer() {

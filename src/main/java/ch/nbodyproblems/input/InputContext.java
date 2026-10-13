@@ -14,7 +14,9 @@ public enum InputContext {
             CAMERA_MOVE_LATERAL,
             CAMERA_MOVE_VERTICAL,
 
-            CAMERA_RESET
+            CAMERA_RESET,
+            MOUSE_CAPTURE_TOGGLE,
+            MOUSE_CAPTURE_RELEASE
     );
 
     private final InputAction[] actions;
