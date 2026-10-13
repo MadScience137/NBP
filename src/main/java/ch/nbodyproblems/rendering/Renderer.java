@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static ch.nbodyproblems.input.InputContext.EDITOR;
+import static ch.nbodyproblems.input.InputContext.EDITOR_VIEW;
 import static ch.nbodyproblems.input.action.TriggerInputAction.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -98,7 +99,7 @@ public class Renderer {
 
     private void initInputSystem() {
         inputSystem = new InputSystem(window);
-        inputSystem.switchContext(EDITOR);
+        inputSystem.requestContextSwitch(EDITOR_VIEW);
         inputSystem.addOnAction(CAMERA_RESET, camera::reset);
         inputSystem.addOnAction(MOUSE_CAPTURE_TOGGLE, () -> inputSystem.setMouseCaptured(!inputSystem.isMouseCaptured()));
         inputSystem.addOnAction(MOUSE_CAPTURE_RELEASE, () -> inputSystem.setMouseCaptured(false));
@@ -185,6 +186,7 @@ public class Renderer {
 
             inputSystem.clearAxisActivations();
             glfwPollEvents();
+            inputSystem.executeContextSwitch();
             inputSystem.tick(nowSeconds, delta);
 
             if (width <= 0 || height <= 0) {

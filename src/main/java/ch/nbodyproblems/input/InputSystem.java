@@ -36,6 +36,7 @@ public class InputSystem implements Tickable {
     private final Map<InputAction, Set<InputBinding>> bindings = new HashMap<>();
 
     private InputContext activeContext;
+    private InputContext requestedContext;
     private final HashMap<InputAction, Set<Runnable>> onActionCallback = new HashMap<>();
 
     private final Vector2d mousePosition = new Vector2d();
@@ -228,11 +229,15 @@ public class InputSystem implements Tickable {
         }
     }
 
-    public void switchContext(InputContext context) {
-        if (activeContext != context) setMouseCaptured(false);
+    public void executeContextSwitch() {
+        if (requestedContext == null || requestedContext == activeContext) return;
+
+        if (!requestedContext.isMouseCaptureEnabled()) {
+            setMouseCaptured(false);
+        }
         mousePositionValid = false;
         clearAxisActivations();
-        activeContext = context;
+        activeContext = requestedContext;
         buttonBindings.clear();
         axisButtonBindings.clear();
         axisBindings.clear();
@@ -240,11 +245,16 @@ public class InputSystem implements Tickable {
 
         for (Set<InputBinding> bindingSet : bindings.values()) {
             for (InputBinding binding : bindingSet) {
-                if (context.containsAction(binding.action())) {
+                if (requestedContext.containsAction(binding.action())) {
                     activateBinding(binding);
                 }
             }
         }
+        requestedContext = null;
+    }
+
+    public void requestContextSwitch(InputContext context) {
+        requestedContext = context;
     }
 
     private void activateBinding(InputBinding binding) {
@@ -264,7 +274,7 @@ public class InputSystem implements Tickable {
                 this.bindings.computeIfAbsent(binding.action(), this::newSet).add(binding)
         );
         if (activeContext != null) {
-            switchContext(activeContext);
+            requestContextSwitch(activeContext);
         }
     }
 
@@ -281,7 +291,7 @@ public class InputSystem implements Tickable {
 
     private void removeBinding(InputBinding binding) {
         bindings.remove(binding.action());
-        switchContext(activeContext);
+        requestContextSwitch(activeContext);
     }
 
     private boolean requiredModifierMissing(InputBinding binding) {
