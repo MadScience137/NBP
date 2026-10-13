@@ -1,4 +1,4 @@
-package ch.nbodyproblems.input.activation;
+package ch.nbodyproblems.input.axis.activation;
 
 public class BinaryActivation extends ActivationFunction {
     public BinaryActivation(double duration) {

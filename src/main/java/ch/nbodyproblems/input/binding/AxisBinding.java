@@ -1,7 +1,6 @@
 package ch.nbodyproblems.input.binding;
 
-import ch.nbodyproblems.input.MouseAxis;
-import ch.nbodyproblems.input.CursorRequirement;
+import ch.nbodyproblems.input.axis.MouseAxis;
 import ch.nbodyproblems.input.action.AxisInputAction;
 import ch.nbodyproblems.input.button.InputButton;
 

@@ -1,20 +1,25 @@
-package ch.nbodyproblems.input.binding;
+package ch.nbodyproblems.input.defaults;
 
-import ch.nbodyproblems.input.MouseAxis;
-import ch.nbodyproblems.input.activation.ActivationFunction;
-import ch.nbodyproblems.input.activation.ExponentialActivation;
-import ch.nbodyproblems.input.activation.LinearActivation;
+import ch.nbodyproblems.input.axis.MouseAxis;
+import ch.nbodyproblems.input.axis.activation.ActivationFunction;
+import ch.nbodyproblems.input.axis.activation.ExponentialActivation;
+import ch.nbodyproblems.input.binding.AxisBinding;
+import ch.nbodyproblems.input.binding.AxisButtonBinding;
+import ch.nbodyproblems.input.binding.ButtonBinding;
+import ch.nbodyproblems.input.binding.InputBinding;
 
 import java.util.List;
 
-import static ch.nbodyproblems.input.AxisDirection.NEGATIVE;
-import static ch.nbodyproblems.input.AxisDirection.POSITIVE;
-import static ch.nbodyproblems.input.activation.ActivationType.*;
-import static ch.nbodyproblems.input.button.KeyCode.*;
 import static ch.nbodyproblems.input.action.AxisInputAction.*;
 import static ch.nbodyproblems.input.action.TriggerInputAction.*;
-import static ch.nbodyproblems.input.CursorRequirement.*;
-import static ch.nbodyproblems.input.button.MouseButton.*;
+import static ch.nbodyproblems.input.axis.AxisDirection.NEGATIVE;
+import static ch.nbodyproblems.input.axis.AxisDirection.POSITIVE;
+import static ch.nbodyproblems.input.axis.activation.ActivationType.HOLD;
+import static ch.nbodyproblems.input.axis.activation.ActivationType.PRESS;
+import static ch.nbodyproblems.input.binding.CursorRequirement.CAPTURED;
+import static ch.nbodyproblems.input.binding.CursorRequirement.FREE;
+import static ch.nbodyproblems.input.button.KeyCode.*;
+import static ch.nbodyproblems.input.button.MouseButton.MOUSE_LEFT;
 
 public final class DefaultBindings {
     private static final float CAMERA_LOOK_SENSITIVITY = 100;

@@ -1,4 +1,4 @@
-package ch.nbodyproblems.input;
+package ch.nbodyproblems.input.axis;
 
 public enum AxisDirection {
     POSITIVE(1),

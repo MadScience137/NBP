@@ -1,4 +1,4 @@
-package ch.nbodyproblems.input;
+package ch.nbodyproblems.input.binding;
 
 public enum CursorRequirement {
     ANY,
