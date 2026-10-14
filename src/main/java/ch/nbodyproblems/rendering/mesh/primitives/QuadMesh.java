@@ -12,6 +12,7 @@ public class QuadMesh extends TriangleMesh {
         int numTriangles = divisions * divisions * 2;
 
         float[] vertices = new float[vertPerSide * vertPerSide * 3];
+        float[] normals = new float[vertPerSide * vertPerSide * 3];
         float[] texCoords = new float[vertPerSide * vertPerSide * 2];
         int[] triangles = new int[numTriangles * 3];
 
@@ -25,6 +26,10 @@ public class QuadMesh extends TriangleMesh {
                 vertices[vertPos * 3 + 1] = yVal;
                 vertices[vertPos * 3 + 2] = 0;
 
+                normals[vertPos * 3] = 0;
+                normals[vertPos * 3 + 1] = 0;
+                normals[vertPos * 3 + 2] = 1;
+
                 texCoords[vertPos * 2] = xVal;
                 texCoords[vertPos * 2 + 1] = yVal;
 
@@ -35,16 +40,15 @@ public class QuadMesh extends TriangleMesh {
                     int nextVertAbove = nextVert + vertPerSide;
 
                     triangles[triPos * 6] = vertPos;
-                    triangles[triPos * 6 + 1] = nextVert;
-                    triangles[triPos * 6 + 2] = vertAbove;
+                    triangles[triPos * 6 + 1] = vertAbove;
+                    triangles[triPos * 6 + 2] = nextVert;
                     triangles[triPos * 6 + 3] = vertAbove;
-                    triangles[triPos * 6 + 4] = nextVert;
-                    triangles[triPos * 6 + 5] = nextVertAbove;
+                    triangles[triPos * 6 + 4] = nextVertAbove;
+                    triangles[triPos * 6 + 5] = nextVert;
                 }
             }
         }
 
-
-        super(vertices, triangles, texCoords, CullFace.NONE);
+        super(vertices, triangles, normals, texCoords, CullFace.NONE);
     }
 }

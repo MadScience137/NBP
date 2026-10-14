@@ -6,7 +6,6 @@ import ch.nbodyproblems.rendering.material.Material;
 import ch.nbodyproblems.rendering.material.UnlitMaterial;
 import ch.nbodyproblems.rendering.mesh.MeshComponent;
 import ch.nbodyproblems.rendering.mesh.TriangleMesh;
-import ch.nbodyproblems.rendering.mesh.primitives.QuadMesh;
 import ch.nbodyproblems.rendering.scene.GameObject;
 import ch.nbodyproblems.rendering.scene.PerspectiveCamera;
 import ch.nbodyproblems.rendering.scene.objects.Cube;

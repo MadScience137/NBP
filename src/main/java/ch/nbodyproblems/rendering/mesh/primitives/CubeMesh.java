@@ -26,18 +26,19 @@ public class CubeMesh extends TriangleMesh {
         int numTriangles = divisions * divisions * faces.length * 2;
 
         float[] vertices = new float[numVertices * 3];
+        float[] normals = new float[numVertices * 3];
         float[] texCoords = new float[numVertices * 2];
         int[] triangles = new int[numTriangles * 3];
 
         for (int i = 0; i < faces.length; i++) {
-            createFace(i, divisions, resolution, vertices, triangles, texCoords);
+            createFace(i, divisions, resolution, vertices, triangles, normals, texCoords);
         }
 
-        super(vertices, triangles, texCoords);
+        super(vertices, triangles, normals, texCoords);
     }
 
     private static void createFace(int faceIndex, int divisions, int resolution,
-                            float[] vertices, int[] triangles, float[] texCoords) {
+                            float[] vertices, int[] triangles, float[] normals, float[] texCoords) {
         int vertPerFace = resolution * resolution;
         int quadsPerFace = divisions * divisions;
 
@@ -62,6 +63,10 @@ public class CubeMesh extends TriangleMesh {
                 vertices[vertPos * 3] = x;
                 vertices[vertPos * 3 + 1] = y;
                 vertices[vertPos * 3 + 2] = z;
+
+                normals[vertPos * 3] = up.x() * 0.5f;
+                normals[vertPos * 3 + 1] = up.y() * 0.5f;
+                normals[vertPos * 3 + 2] = up.z() * 0.5f;
 
                 texCoords[vertPos * 2] = texXOffset + u / 3;
                 texCoords[vertPos * 2 + 1] = texYOffset + v / 2;

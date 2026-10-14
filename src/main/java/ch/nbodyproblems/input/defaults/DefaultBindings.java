@@ -45,7 +45,7 @@ public final class DefaultBindings {
             new AxisButtonBinding(CAMERA_MOVE_VERTICAL, E, NEGATIVE, CAMERA_CONTROL_ACTIVATION, CAMERA_MOVE_SENSITIVITY),
 
             new ButtonBinding(CAMERA_RESET, R, HOLD),
-            new ButtonBinding(MOUSE_CAPTURE_TOGGLE, F1, PRESS),
+            new ButtonBinding(MOUSE_CAPTURE_TOGGLE, MOUSE_LEFT, PRESS, LEFT_CONTROL),
             new ButtonBinding(MOUSE_CAPTURE_RELEASE, ESCAPE, PRESS)
     );
 

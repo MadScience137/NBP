@@ -12,7 +12,8 @@ import static org.lwjgl.opengl.GL45.*;
 public class TriangleMesh {
     private static final int POSITION_ATTRIBUTE = 0;
     private static final int VERTEX_BINDING = 0;
-    private static final int TEX_COORD_ATTRIBUTE = 1;
+    private static final int NORMAL_ATTRIBUTE = 1;
+    private static final int TEX_COORD_ATTRIBUTE = 2;
 
     public final int elementCount;
     public final int vbo;
@@ -20,46 +21,63 @@ public class TriangleMesh {
     public final int ebo;
     public final CullFace cullFace;
 
-    public TriangleMesh(float[] vertices, int[] triangles, CullFace cullFace) {
-        this(vertices, triangles, null, false, cullFace);
-    }
-    public TriangleMesh(float[] vertices, int[] triangles) {
-        this(vertices, triangles, null, false, CullFace.BACK);
+    public TriangleMesh(float[] vertices, int[] triangles, float[] normals, CullFace cullFace) {
+        this(vertices, triangles, normals, null, false, cullFace);
     }
 
-    public TriangleMesh(float[] vertices, int[] triangles, float[] texCoordinates, CullFace cullFace) {
-        this(vertices, triangles, texCoordinates, true, cullFace);
+    public TriangleMesh(float[] vertices, int[] triangles, float[] normals) {
+        this(vertices, triangles, normals, null, false, CullFace.BACK);
     }
-    public TriangleMesh(float[] vertices, int[] triangles, float[] texCoordinates) {
+
+    public TriangleMesh(float[] vertices, int[] triangles, float[] normals, float[] texCoordinates, CullFace cullFace) {
+        this(vertices, triangles, normals, texCoordinates, true, cullFace);
+    }
+
+    public TriangleMesh(float[] vertices, int[] triangles, float[] normals, float[] texCoordinates) {
         if (texCoordinates == null || texCoordinates.length / 2 != vertices.length / 3) {
             throw new IllegalArgumentException("Texture coordinates do not match vertex count");
         }
-        this(vertices, triangles, texCoordinates, true, CullFace.BACK);
+        this(vertices, triangles, normals, texCoordinates, true, CullFace.BACK);
     }
 
-    private TriangleMesh(float[] vertices, int[] triangles, float[] texCoordinates, boolean hasTexture, CullFace cullFace) {
+    private TriangleMesh(float[] vertices, int[] triangles, float[] normals, float[] texCoordinates, boolean hasTexture, CullFace cullFace) {
         this.cullFace = cullFace;
         elementCount = triangles.length;
+
+        float[] vertexData;
+        int floatsPerVert;
+
+        if (hasTexture) {
+            vertexData = new float[vertices.length + normals.length + texCoordinates.length];
+            floatsPerVert = 8;
+
+            for (int i = 0; i < vertices.length / 3; i++) {
+                vertexData[i * floatsPerVert] = vertices[i * 3];
+                vertexData[i * floatsPerVert + 1] = vertices[i * 3 + 1];
+                vertexData[i * floatsPerVert + 2] = vertices[i * 3 + 2];
+                vertexData[i * floatsPerVert + 3] = normals[i * 3];
+                vertexData[i * floatsPerVert + 4] = normals[i * 3 + 1];
+                vertexData[i * floatsPerVert + 5] = normals[i * 3 + 2];
+                vertexData[i * floatsPerVert + 6] = texCoordinates[i * 2];
+                vertexData[i * floatsPerVert + 7] = texCoordinates[i * 2 + 1];
+            }
+        } else {
+            vertexData = new float[vertices.length + normals.length];
+            floatsPerVert = 6;
+
+            for (int i = 0; i < vertices.length / 3; i++) {
+                vertexData[i * floatsPerVert] = vertices[i * 3];
+                vertexData[i * floatsPerVert + 1] = vertices[i * 3 + 1];
+                vertexData[i * floatsPerVert + 2] = vertices[i * 3 + 2];
+                vertexData[i * floatsPerVert + 3] = normals[i * 3];
+                vertexData[i * floatsPerVert + 4] = normals[i * 3 + 1];
+                vertexData[i * floatsPerVert + 5] = normals[i * 3 + 2];
+            }
+        }
 
         vao = glCreateVertexArrays();
         vbo = glCreateBuffers();
         ebo = glCreateBuffers();
-
-        float[] vertexData;
-
-        if (hasTexture) {
-            vertexData = new float[vertices.length + texCoordinates.length];
-
-            for (int i = 0; i < vertices.length / 3; i++) {
-                vertexData[i * 5] = vertices[i * 3];
-                vertexData[i * 5 + 1] = vertices[i * 3 + 1];
-                vertexData[i * 5 + 2] = vertices[i * 3 + 2];
-                vertexData[i * 5 + 3] = texCoordinates[i * 2];
-                vertexData[i * 5 + 4] = texCoordinates[i * 2 + 1];
-            }
-        } else {
-            vertexData = vertices;
-        }
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer verticesBuffer = stack.mallocFloat(vertexData.length);
@@ -71,15 +89,19 @@ public class TriangleMesh {
             glNamedBufferData(ebo, indexBuffer, GL_STATIC_DRAW);
         }
 
-        int stride = hasTexture ? 5 : 3;
-        glVertexArrayVertexBuffer(vao, VERTEX_BINDING, vbo, 0, stride * Float.BYTES);
+        glVertexArrayElementBuffer(vao, ebo);
+        glVertexArrayVertexBuffer(vao, VERTEX_BINDING, vbo, 0, floatsPerVert * Float.BYTES);
+
         glVertexArrayAttribFormat(vao, POSITION_ATTRIBUTE, 3, GL_FLOAT, false, 0);
         glVertexArrayAttribBinding(vao, POSITION_ATTRIBUTE, VERTEX_BINDING);
         glEnableVertexArrayAttrib(vao, POSITION_ATTRIBUTE);
-        glVertexArrayElementBuffer(vao, ebo);
+
+        glVertexArrayAttribFormat(vao, TEX_COORD_ATTRIBUTE, 3, GL_FLOAT, false, 3 * Float.BYTES);
+        glVertexArrayAttribBinding(vao, TEX_COORD_ATTRIBUTE, VERTEX_BINDING);
+        glEnableVertexArrayAttrib(vao, TEX_COORD_ATTRIBUTE);
 
         if (hasTexture) {
-            glVertexArrayAttribFormat(vao, TEX_COORD_ATTRIBUTE, 2, GL_FLOAT, false, 3 * Float.BYTES);
+            glVertexArrayAttribFormat(vao, TEX_COORD_ATTRIBUTE, 2, GL_FLOAT, false, 6 * Float.BYTES);
             glVertexArrayAttribBinding(vao, TEX_COORD_ATTRIBUTE, VERTEX_BINDING);
             glEnableVertexArrayAttrib(vao, TEX_COORD_ATTRIBUTE);
         }
