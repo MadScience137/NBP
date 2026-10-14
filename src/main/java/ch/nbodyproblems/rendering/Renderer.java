@@ -111,6 +111,7 @@ public class Renderer {
         glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_GREATER);
+        glFrontFace(GL_CCW);
         glDepthMask(true);
         glClearDepth(0.0);
 
@@ -245,14 +246,27 @@ public class Renderer {
             MeshComponent meshComponent = object.getComponent(MeshComponent.class);
 
             if (meshComponent.isEnabled()) {
+                TriangleMesh mesh = meshComponent.getMesh();
                 Material material = meshComponent.getMaterial();
                 glUseProgram(material.shaderProgram);
                 material.setTransformMatrix(objectTransform);
                 material.setProjectionMatrix(camera.getProjectionMatrix());
                 material.updateShaderData();
 
-                glBindVertexArray(meshComponent.getMesh().vao);
-                glDrawElements(GL_TRIANGLES, meshComponent.getMesh().elementCount, GL_UNSIGNED_INT, 0);
+                switch (mesh.cullFace) {
+                    case BACK ->{
+                        glEnable(GL_CULL_FACE);
+                        glCullFace(GL_BACK);
+                    }
+                    case FRONT -> {
+                        glEnable(GL_CULL_FACE);
+                        glCullFace(GL_FRONT);
+                    }
+                    case NONE -> glDisable(GL_CULL_FACE);
+                }
+
+                glBindVertexArray(mesh.vao);
+                glDrawElements(GL_TRIANGLES, mesh.elementCount, GL_UNSIGNED_INT, 0);
             }
         }
 

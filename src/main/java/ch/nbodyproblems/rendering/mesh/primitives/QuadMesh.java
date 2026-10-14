@@ -1,5 +1,6 @@
 package ch.nbodyproblems.rendering.mesh.primitives;
 
+import ch.nbodyproblems.rendering.mesh.CullFace;
 import ch.nbodyproblems.rendering.mesh.TriangleMesh;
 
 public class QuadMesh extends TriangleMesh {
@@ -44,6 +45,6 @@ public class QuadMesh extends TriangleMesh {
         }
 
 
-        super(vertices, triangles, texCoords);
+        super(vertices, triangles, texCoords, CullFace.NONE);
     }
 }

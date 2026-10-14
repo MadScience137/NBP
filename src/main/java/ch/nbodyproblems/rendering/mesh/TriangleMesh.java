@@ -18,23 +18,33 @@ public class TriangleMesh {
     public final int vbo;
     public final int vao;
     public final int ebo;
+    public final CullFace cullFace;
 
+    public TriangleMesh(float[] vertices, int[] triangles, CullFace cullFace) {
+        this(vertices, triangles, null, false, cullFace);
+    }
     public TriangleMesh(float[] vertices, int[] triangles) {
-        this(vertices, triangles, null, false);
+        this(vertices, triangles, null, false, CullFace.BACK);
     }
 
+    public TriangleMesh(float[] vertices, int[] triangles, float[] texCoordinates, CullFace cullFace) {
+        this(vertices, triangles, texCoordinates, true, cullFace);
+    }
     public TriangleMesh(float[] vertices, int[] triangles, float[] texCoordinates) {
         if (texCoordinates == null || texCoordinates.length / 2 != vertices.length / 3) {
             throw new IllegalArgumentException("Texture coordinates do not match vertex count");
         }
-        this(vertices, triangles, texCoordinates, true);
+        this(vertices, triangles, texCoordinates, true, CullFace.BACK);
     }
 
-    private TriangleMesh(float[] vertices, int[] triangles, float[] texCoordinates, boolean hasTexture) {
+    private TriangleMesh(float[] vertices, int[] triangles, float[] texCoordinates, boolean hasTexture, CullFace cullFace) {
+        this.cullFace = cullFace;
+        elementCount = triangles.length;
+
         vao = glCreateVertexArrays();
         vbo = glCreateBuffers();
         ebo = glCreateBuffers();
-        elementCount = triangles.length;
+
         float[] vertexData;
 
         if (hasTexture) {
