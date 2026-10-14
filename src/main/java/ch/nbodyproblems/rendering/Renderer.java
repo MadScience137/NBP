@@ -2,12 +2,15 @@ package ch.nbodyproblems.rendering;
 
 import ch.nbodyproblems.input.InputSystem;
 import ch.nbodyproblems.input.action.AxisInputAction;
-import ch.nbodyproblems.rendering.material.MaterialBase;
+import ch.nbodyproblems.rendering.material.Material;
+import ch.nbodyproblems.rendering.material.UnlitMaterial;
 import ch.nbodyproblems.rendering.mesh.MeshComponent;
 import ch.nbodyproblems.rendering.mesh.TriangleMesh;
-import ch.nbodyproblems.rendering.mesh.primitives.Quad;
+import ch.nbodyproblems.rendering.mesh.primitives.QuadMesh;
 import ch.nbodyproblems.rendering.scene.GameObject;
 import ch.nbodyproblems.rendering.scene.PerspectiveCamera;
+import ch.nbodyproblems.rendering.scene.objects.Cube;
+import ch.nbodyproblems.rendering.scene.objects.Quad;
 import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
@@ -18,7 +21,6 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import static ch.nbodyproblems.input.InputContext.EDITOR;
 import static ch.nbodyproblems.input.InputContext.EDITOR_VIEW;
 import static ch.nbodyproblems.input.action.TriggerInputAction.*;
 import static org.lwjgl.glfw.GLFW.*;
@@ -161,11 +163,11 @@ public class Renderer {
     }
 
     private void initScene() {
-        GameObject quad1 = new Quad(0.1f, 0.2f, 0.4f, 1f);
-        GameObject quad2 = new Quad(0.4f, 0.2f, 0.1f, 1f);
-        quad2.setPosition(1, 0, -1);
-        quad1.addChild(quad2);
-        sceneObjects.add(quad1);
+        GameObject cube = new Cube(2, new UnlitMaterial(0.1f, 0.2f, 0.4f, 1f));
+        GameObject quad = new Quad(4, new UnlitMaterial(0.4f, 0.2f, 0.1f, 1f));
+        quad.setPosition(1, 0, -1);
+        sceneObjects.add(cube);
+        sceneObjects.add(quad);
     }
 
     private boolean frameBufferUpdateRequired() {
@@ -243,14 +245,14 @@ public class Renderer {
             MeshComponent meshComponent = object.getComponent(MeshComponent.class);
 
             if (meshComponent.isEnabled()) {
-                MaterialBase material = meshComponent.getMaterial();
+                Material material = meshComponent.getMaterial();
                 glUseProgram(material.shaderProgram);
                 material.setTransformMatrix(objectTransform);
                 material.setProjectionMatrix(camera.getProjectionMatrix());
                 material.updateShaderData();
 
                 glBindVertexArray(meshComponent.getMesh().vao);
-                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                glDrawElements(GL_TRIANGLES, meshComponent.getMesh().elementCount, GL_UNSIGNED_INT, 0);
             }
         }
 

@@ -14,7 +14,7 @@ import java.util.List;
 import static ch.nbodyproblems.util.ResourceLoader.loadResource;
 import static org.lwjgl.opengl.GL20.*;
 
-public abstract class MaterialBase {
+public abstract class Material {
     public final int shaderProgram;
     private final Runnable refreshDataTask;
 
@@ -22,7 +22,7 @@ public abstract class MaterialBase {
 
     protected Matrix4fMaterialProperty projectionMatrix = new Matrix4fMaterialProperty("projection");
 
-    public MaterialBase(String vertexSource, String fragmentSource) {
+    public Material(String vertexSource, String fragmentSource) {
         int vs = initShader(GL_VERTEX_SHADER, vertexSource);
         int fs = initShader(GL_FRAGMENT_SHADER, fragmentSource);
 
