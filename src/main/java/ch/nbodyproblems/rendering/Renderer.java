@@ -3,12 +3,13 @@ package ch.nbodyproblems.rendering;
 import ch.nbodyproblems.input.InputSystem;
 import ch.nbodyproblems.input.action.AxisInputAction;
 import ch.nbodyproblems.rendering.material.Material;
-import ch.nbodyproblems.rendering.material.UnlitMaterial;
+import ch.nbodyproblems.rendering.material.PbrMaterial;
 import ch.nbodyproblems.rendering.mesh.MeshComponent;
 import ch.nbodyproblems.rendering.mesh.TriangleMesh;
 import ch.nbodyproblems.rendering.scene.GameObject;
 import ch.nbodyproblems.rendering.scene.PerspectiveCamera;
 import ch.nbodyproblems.rendering.scene.objects.Cube;
+import ch.nbodyproblems.rendering.scene.objects.CubeSphere;
 import ch.nbodyproblems.rendering.scene.objects.Quad;
 import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -163,11 +164,14 @@ public class Renderer {
     }
 
     private void initScene() {
-        GameObject cube = new Cube(2, new UnlitMaterial(0.1f, 0.2f, 0.4f, 1f));
-        GameObject quad = new Quad(4, new UnlitMaterial(0.4f, 0.2f, 0.1f, 1f));
-        quad.setPosition(1, 0, -1);
+        GameObject cube = new Cube(2, new PbrMaterial(Color.DODGER_BLUE));
+        GameObject quad = new Quad(2, new PbrMaterial(Color.SPRING_GREEN));
+        GameObject sphere = new CubeSphere(12, new PbrMaterial(Color.GOLD));
+        quad.setPosition(2, 0, 0);
+        sphere.setPosition(-2, 0, 0);
         sceneObjects.add(cube);
         sceneObjects.add(quad);
+        sceneObjects.add(sphere);
     }
 
     private boolean frameBufferUpdateRequired() {
@@ -206,7 +210,7 @@ public class Renderer {
                     inputSystem.getAxisActivation(AxisInputAction.CAMERA_ROTATE_YAW),
                     0f
             );
-            camera.updateProjectionMatrix();
+            camera.updateViewProjection();
 
             if (frameBufferUpdateRequired()) {
                 updateFrameBuffer();
@@ -249,7 +253,8 @@ public class Renderer {
                 Material material = meshComponent.getMaterial();
                 glUseProgram(material.shaderProgram);
                 material.setTransformMatrix(objectTransform);
-                material.setProjectionMatrix(camera.getProjectionMatrix());
+                material.setViewProjectionMatrix(camera.getViewProjectionMatrix());
+                material.setCameraPosition(camera.getPosition());
                 material.updateShaderData();
 
                 switch (mesh.cullFace) {

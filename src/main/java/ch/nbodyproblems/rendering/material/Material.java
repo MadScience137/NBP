@@ -2,7 +2,9 @@ package ch.nbodyproblems.rendering.material;
 
 import ch.nbodyproblems.rendering.material.property.MaterialProperty;
 import ch.nbodyproblems.rendering.material.property.matrix.Matrix4fMaterialProperty;
+import ch.nbodyproblems.rendering.material.property.vector.Vector3fMaterialProperty;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.system.MemoryStack;
 
 import java.lang.reflect.Field;
@@ -20,7 +22,9 @@ public abstract class Material {
 
     protected Matrix4fMaterialProperty transformMatrix = new Matrix4fMaterialProperty("transform");
 
-    protected Matrix4fMaterialProperty projectionMatrix = new Matrix4fMaterialProperty("projection");
+    protected Matrix4fMaterialProperty viewProjection = new Matrix4fMaterialProperty("viewProjection");
+
+    protected Vector3fMaterialProperty cameraPosition = new Vector3fMaterialProperty("cameraPosition");
 
     public Material(String vertexSource, String fragmentSource) {
         int vs = initShader(GL_VERTEX_SHADER, vertexSource);
@@ -91,7 +95,11 @@ public abstract class Material {
         transformMatrix.set(objectTransform);
     }
 
-    public void setProjectionMatrix(Matrix4f projection) {
-        projectionMatrix.set(projection);
+    public void setViewProjectionMatrix(Matrix4f viewProjection) {
+        this.viewProjection.set(viewProjection);
+    }
+
+    public void setCameraPosition(Vector3f position) {
+        cameraPosition.set(position);
     }
 }

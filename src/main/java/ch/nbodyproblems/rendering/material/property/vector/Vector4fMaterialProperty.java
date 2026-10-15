@@ -1,5 +1,6 @@
 package ch.nbodyproblems.rendering.material.property.vector;
 
+import ch.nbodyproblems.rendering.Color;
 import ch.nbodyproblems.rendering.material.property.MaterialProperty;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryStack;

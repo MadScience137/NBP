@@ -96,9 +96,9 @@ public class TriangleMesh {
         glVertexArrayAttribBinding(vao, POSITION_ATTRIBUTE, VERTEX_BINDING);
         glEnableVertexArrayAttrib(vao, POSITION_ATTRIBUTE);
 
-        glVertexArrayAttribFormat(vao, TEX_COORD_ATTRIBUTE, 3, GL_FLOAT, false, 3 * Float.BYTES);
-        glVertexArrayAttribBinding(vao, TEX_COORD_ATTRIBUTE, VERTEX_BINDING);
-        glEnableVertexArrayAttrib(vao, TEX_COORD_ATTRIBUTE);
+        glVertexArrayAttribFormat(vao, NORMAL_ATTRIBUTE, 3, GL_FLOAT, false, 3 * Float.BYTES);
+        glVertexArrayAttribBinding(vao, NORMAL_ATTRIBUTE, VERTEX_BINDING);
+        glEnableVertexArrayAttrib(vao, NORMAL_ATTRIBUTE);
 
         if (hasTexture) {
             glVertexArrayAttribFormat(vao, TEX_COORD_ATTRIBUTE, 2, GL_FLOAT, false, 6 * Float.BYTES);

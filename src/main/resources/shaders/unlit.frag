@@ -1,11 +1,11 @@
 #version 450 core
 
-in vec3 normal;
-in vec2 texCooord;
+layout (location = 0) in vec3 normal;
+layout (location = 1) in vec2 texCoord;
 
-out vec4 FragColor;
+layout (location = 2) uniform vec4 color;
 
-uniform vec4 color;
+layout (location = 0) out vec4 FragColor;
 
 void main() {
     FragColor = color;

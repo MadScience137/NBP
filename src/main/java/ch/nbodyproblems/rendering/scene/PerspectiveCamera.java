@@ -2,10 +2,9 @@ package ch.nbodyproblems.rendering.scene;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.joml.Matrix4f;
-import org.joml.Quaterniond;
-import org.joml.Quaternionf;
-import org.joml.Vector3d;
+import org.joml.*;
+
+import java.lang.Math;
 
 public class PerspectiveCamera {
     @Setter
@@ -20,10 +19,10 @@ public class PerspectiveCamera {
     @Setter
     @Getter
     private double fov;
-    private Matrix4f cameraMatrix = new Matrix4f();
+    private Matrix4f projectionMatrix = new Matrix4f();
     private Matrix4f viewMatrix = new Matrix4f();
     @Getter
-    private Matrix4f projectionMatrix = new Matrix4f();
+    private Matrix4f viewProjectionMatrix = new Matrix4f();
     @Setter
     private Vector3d position = new Vector3d();
     private Quaterniond rotation = new Quaterniond();
@@ -34,7 +33,7 @@ public class PerspectiveCamera {
         this.aspectRatio = aspectRatio;
         this.fov = fov;
 
-        updateProjectionMatrix();
+        updateViewProjection();
     }
 
     public void setPosition(double x, double y, double z) {
@@ -72,17 +71,20 @@ public class PerspectiveCamera {
         setRotation(new Vector3d(pitch, yaw, roll));
     }
 
-    public void updateProjectionMatrix() {
-        updateCameraMatrix();
+    public void updateViewProjection() {
+        updateProjectionMatrix();
+        updateViewMatrix();
+        viewProjectionMatrix.set(projectionMatrix).mul(viewMatrix);
+    }
+
+    private void updateViewMatrix() {
         viewMatrix.identity()
                 .rotate(new Quaternionf(rotation).invert())
                 .translate((float) position.x, (float) position.y, (float) position.z);
-
-        projectionMatrix.set(cameraMatrix).mul(viewMatrix);
     }
 
-    private void updateCameraMatrix() {
-        cameraMatrix.identity().perspective(
+    private void updateProjectionMatrix() {
+        projectionMatrix.identity().perspective(
                 (float) Math.toRadians(fov),
                 (float) aspectRatio,
                 (float) farCLip, (float) nearCLip,
@@ -93,5 +95,9 @@ public class PerspectiveCamera {
     public void reset() {
         position.set(0, 0, 0);
         rotation.identity();
+    }
+
+    public Vector3f getPosition() {
+        return new Vector3f(position);
     }
 }
