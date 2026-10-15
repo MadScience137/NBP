@@ -55,7 +55,7 @@ public class Renderer {
         this.height = initialHeight;
         float aspectRatio = (float) initialWidth / initialHeight;
         camera = new PerspectiveCamera(0.1f, 1e4f, aspectRatio, 60f);
-        camera.setPosition(0f, 0f, -5f);
+        camera.setPosition(0f, 0f, 5f);
     }
 
     public void init() {
@@ -164,9 +164,9 @@ public class Renderer {
     }
 
     private void initScene() {
-        GameObject cube = new Cube(2, new PbrMaterial(Color.DODGER_BLUE));
+        GameObject cube = new Cube(2, new PbrMaterial(Color.GOLD));
         GameObject quad = new Quad(2, new PbrMaterial(Color.SPRING_GREEN));
-        GameObject sphere = new CubeSphere(12, new PbrMaterial(Color.GOLD));
+        GameObject sphere = new CubeSphere(12, new PbrMaterial(Color.DODGER_BLUE));
         quad.setPosition(2, 0, 0);
         sphere.setPosition(-2, 0, 0);
         sceneObjects.add(cube);
@@ -258,7 +258,7 @@ public class Renderer {
                 material.updateShaderData();
 
                 switch (mesh.cullFace) {
-                    case BACK ->{
+                    case BACK -> {
                         glEnable(GL_CULL_FACE);
                         glCullFace(GL_BACK);
                     }

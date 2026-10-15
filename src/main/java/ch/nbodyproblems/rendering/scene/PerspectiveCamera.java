@@ -80,7 +80,7 @@ public class PerspectiveCamera {
     private void updateViewMatrix() {
         viewMatrix.identity()
                 .rotate(new Quaternionf(rotation).invert())
-                .translate((float) position.x, (float) position.y, (float) position.z);
+                .translate((float) -position.x, (float) -position.y, (float) -position.z);
     }
 
     private void updateProjectionMatrix() {

@@ -12,8 +12,8 @@ public class PbrMaterial extends Material {
     private final Vector3fMaterialProperty lightDirection = new Vector3fMaterialProperty(new Vector3f(0.75f, 0.5f, 1).normalize(), "lightDirection");
     private final ColorMaterialProperty albedo = new ColorMaterialProperty("albedo");
     private final FloatMaterialProperty roughness = new FloatMaterialProperty(0.5f, "roughness");
-    private final FloatMaterialProperty metallic = new FloatMaterialProperty(0.5f, "metallic");
-    private final FloatMaterialProperty ambientOcclusion = new FloatMaterialProperty(0f, "ao");
+    private final FloatMaterialProperty metallic = new FloatMaterialProperty(0.8f, "metallic");
+    private final FloatMaterialProperty ambientOcclusion = new FloatMaterialProperty(0.1f, "ao");
 
     private static final String VERTEX_SHADER_PATH = "/shaders/pbr.vert";
     private static final String FRAGMENT_SHADER_PATH = "/shaders/pbr.frag";
@@ -22,7 +22,7 @@ public class PbrMaterial extends Material {
         super(VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
         setAlbedo(albedo);
         setLightColor(Color.WHITE);
-        setAmbientLightColor(new Color(0.1f, 0.1f, 0.1f));
+        setAmbientLightColor(new Color(0.01f, 0.01f, 0.01f));
     }
 
     public void setAlbedo(Color albedo) {

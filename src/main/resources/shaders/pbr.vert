@@ -15,7 +15,7 @@ layout(location = 3) out vec2 texCoord;
 
 void main() {
     worldPosition = (transform * vec4(aPosition, 1)).xyz;
-    viewRay = normalize(worldPosition - cameraPosition);
+    viewRay = normalize(cameraPosition - worldPosition);
     normal = transpose(inverse(mat3(transform))) * aNormal;
     texCoord = aTexCoord;
 
