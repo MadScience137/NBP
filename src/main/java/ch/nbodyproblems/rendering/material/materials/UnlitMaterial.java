@@ -1,9 +1,8 @@
-package ch.nbodyproblems.rendering.material;
+package ch.nbodyproblems.rendering.material.materials;
 
 import ch.nbodyproblems.rendering.Color;
+import ch.nbodyproblems.rendering.material.Material;
 import ch.nbodyproblems.rendering.material.property.vector.ColorMaterialProperty;
-import ch.nbodyproblems.rendering.material.property.vector.Vector4fMaterialProperty;
-import org.joml.Vector4f;
 
 public class UnlitMaterial extends Material {
     private static final String VERTEX_SHADER_PATH = "/shaders/unlit.vert";

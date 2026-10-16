@@ -3,15 +3,20 @@ package ch.nbodyproblems.rendering;
 import ch.nbodyproblems.input.InputSystem;
 import ch.nbodyproblems.input.action.AxisInputAction;
 import ch.nbodyproblems.rendering.material.Material;
-import ch.nbodyproblems.rendering.material.PbrMaterial;
+import ch.nbodyproblems.rendering.material.materials.PbrMaterial;
 import ch.nbodyproblems.rendering.mesh.MeshComponent;
+import ch.nbodyproblems.rendering.mesh.PolyLineComponent;
+import ch.nbodyproblems.rendering.mesh.PolyLineMesh;
 import ch.nbodyproblems.rendering.mesh.TriangleMesh;
 import ch.nbodyproblems.rendering.scene.GameObject;
 import ch.nbodyproblems.rendering.scene.PerspectiveCamera;
 import ch.nbodyproblems.rendering.scene.objects.Cube;
 import ch.nbodyproblems.rendering.scene.objects.CubeSphere;
+import ch.nbodyproblems.rendering.scene.objects.PolyLine;
 import ch.nbodyproblems.rendering.scene.objects.Quad;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
@@ -167,11 +172,25 @@ public class Renderer {
         GameObject cube = new Cube(2, new PbrMaterial(Color.GOLD));
         GameObject quad = new Quad(2, new PbrMaterial(Color.SPRING_GREEN));
         GameObject sphere = new CubeSphere(12, new PbrMaterial(Color.DODGER_BLUE));
+
+        Vector3fc[] points = new Vector3fc[100];
+        float distance = 5;
+
+        for (int i = 0; i < points.length; i++) {
+            points[i] = new Vector3f(
+                    (float) Math.sin((float) i * Math.PI * 2 / (points.length - 1)) * distance,
+                    (float) Math.cos((float) i * Math.PI * 2 / (points.length - 1)) * distance,
+                    0
+            );
+        }
+
+        GameObject line = new PolyLine(points, 4f, Color.BLUE);
         quad.setPosition(2, 0, 0);
         sphere.setPosition(-2, 0, 0);
         sceneObjects.add(cube);
         sceneObjects.add(quad);
         sceneObjects.add(sphere);
+        sceneObjects.add(line);
     }
 
     private boolean frameBufferUpdateRequired() {
@@ -246,37 +265,62 @@ public class Renderer {
         Matrix4f objectTransform = new Matrix4f(parentTransform).mul(object.getTransform());
 
         if (object.hasComponent(MeshComponent.class)) {
-            MeshComponent meshComponent = object.getComponent(MeshComponent.class);
+            drawMesh(object, objectTransform);
+        }
 
-            if (meshComponent.isEnabled()) {
-                TriangleMesh mesh = meshComponent.getMesh();
-                Material material = meshComponent.getMaterial();
-                glUseProgram(material.shaderProgram);
-                material.setTransformMatrix(objectTransform);
-                material.setViewProjectionMatrix(camera.getViewProjectionMatrix());
-                material.setCameraPosition(camera.getPosition());
-                material.updateShaderData();
-
-                switch (mesh.cullFace) {
-                    case BACK -> {
-                        glEnable(GL_CULL_FACE);
-                        glCullFace(GL_BACK);
-                    }
-                    case FRONT -> {
-                        glEnable(GL_CULL_FACE);
-                        glCullFace(GL_FRONT);
-                    }
-                    case NONE -> glDisable(GL_CULL_FACE);
-                }
-
-                glBindVertexArray(mesh.vao);
-                glDrawElements(GL_TRIANGLES, mesh.elementCount, GL_UNSIGNED_INT, 0);
-            }
+        if (object.hasComponent(PolyLineComponent.class)) {
+            drawPolyLine(object, objectTransform);
         }
 
         for (GameObject child : object.getChildren()) {
             traverseSceneObjects(child, objectTransform, now, delta);
         }
+    }
+
+    private void drawPolyLine(GameObject object, Matrix4f objectTransform) {
+        PolyLineComponent lineComponent = object.getComponent(PolyLineComponent.class);
+
+        if (lineComponent.isEnabled()) {
+            PolyLineMesh mesh = lineComponent.getMesh();
+            updateMaterial(lineComponent.getMaterial(), objectTransform);
+
+            glBindVertexArray(mesh.vao);
+            glDrawArrays(GL_LINE_STRIP, 0, mesh.pointCount);
+        }
+    }
+
+    private void drawMesh(GameObject object, Matrix4f objectTransform) {
+        MeshComponent meshComponent = object.getComponent(MeshComponent.class);
+
+        if (!meshComponent.isEnabled()) return;
+
+        TriangleMesh mesh = meshComponent.getMesh();
+        updateMaterial(meshComponent.getMaterial(), objectTransform);
+
+        switch (mesh.cullFace) {
+            case BACK -> {
+                glEnable(GL_CULL_FACE);
+                glCullFace(GL_BACK);
+            }
+            case FRONT -> {
+                glEnable(GL_CULL_FACE);
+                glCullFace(GL_FRONT);
+            }
+            case NONE -> glDisable(GL_CULL_FACE);
+        }
+
+        glBindVertexArray(mesh.vao);
+        glDrawElements(GL_TRIANGLES, mesh.elementCount, GL_UNSIGNED_INT, 0);
+    }
+
+    private void updateMaterial(Material meshComponent, Matrix4f objectTransform) {
+        Material material = meshComponent;
+        glUseProgram(material.shaderProgram);
+        material.setTransformMatrix(objectTransform);
+        material.setViewProjectionMatrix(camera.getViewProjectionMatrix());
+        material.setCameraPosition(camera.getPosition());
+        material.setViewportSize(width, height);
+        material.updateShaderData();
     }
 
     private void destroyFrameBuffer() {

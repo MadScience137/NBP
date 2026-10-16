@@ -1,6 +1,7 @@
-package ch.nbodyproblems.rendering.material;
+package ch.nbodyproblems.rendering.material.materials;
 
 import ch.nbodyproblems.rendering.Color;
+import ch.nbodyproblems.rendering.material.Material;
 import ch.nbodyproblems.rendering.material.property.number.FloatMaterialProperty;
 import ch.nbodyproblems.rendering.material.property.vector.ColorMaterialProperty;
 import ch.nbodyproblems.rendering.material.property.vector.Vector3fMaterialProperty;

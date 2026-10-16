@@ -15,7 +15,7 @@ layout(location = 1) in vec3 viewRay;
 layout(location = 2) in vec3 normal;
 layout(location = 3) in vec2 texCoord;
 
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
 
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
