@@ -184,7 +184,7 @@ public class Renderer {
             );
         }
 
-        GameObject line = new PolyLine(points, 4f, Color.BLUE);
+        GameObject line = new PolyLine(points, 4f, 1f, Color.DODGER_BLUE, Color.SPRING_GREEN);
         quad.setPosition(2, 0, 0);
         sphere.setPosition(-2, 0, 0);
         sceneObjects.add(cube);

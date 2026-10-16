@@ -1,13 +1,15 @@
 #version 450 core
 
 layout(location = 0) uniform vec3 cameraPosition;
-layout(location = 3) uniform float thickness;
-layout(location = 4) uniform vec2 viewportSize;
+layout(location = 4) uniform float startThickness;
+layout(location = 5) uniform float endThickness;
+layout(location = 6) uniform vec2 viewportSize;
 
 layout(lines) in;
-layout(location = 0) in float cameraDistance[];
+layout(location = 0) in float lineFractions[];
 
 layout(triangle_strip, max_vertices = 4) out;
+layout(location = 0) out float lineFraction;
 
 void main() {
     vec4 p1 = gl_in[0].gl_Position;
@@ -21,18 +23,23 @@ void main() {
 
     vec2 normal = normalize(vec2(-direction.y, direction.x));
 
-    vec2 offset = normal * thickness / viewportSize;
+    vec2 offset1 = normal * mix(startThickness, endThickness, lineFractions[0]) / viewportSize;
+    vec2 offset2 = normal * mix(startThickness, endThickness, lineFractions[1]) / viewportSize;
 
-    gl_Position = p1 + vec4(-offset * p1.w, 0.0, 0.0);
+    gl_Position = p1 + vec4(-offset1 * p1.w, 0.0, 0.0);
+    lineFraction = lineFractions[0];
     EmitVertex();
 
-    gl_Position = p2 + vec4(-offset * p2.w, 0.0, 0.0);
+    gl_Position = p2 + vec4(-offset2 * p2.w, 0.0, 0.0);
+    lineFraction = lineFractions[1];
     EmitVertex();
 
-    gl_Position = p1 + vec4(offset * p1.w, 0.0, 0.0);
+    gl_Position = p1 + vec4(offset1 * p1.w, 0.0, 0.0);
+    lineFraction = lineFractions[0];
     EmitVertex();
 
-    gl_Position = p2 + vec4(offset * p2.w, 0.0, 0.0);
+    gl_Position = p2 + vec4(offset2 * p2.w, 0.0, 0.0);
+    lineFraction = lineFractions[1];
     EmitVertex();
 
     EndPrimitive();
