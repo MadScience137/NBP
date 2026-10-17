@@ -1,5 +1,6 @@
 package ch.nbodyproblems.rendering;
 
+import ch.nbodyproblems.input.InputContext;
 import ch.nbodyproblems.input.InputSystem;
 import ch.nbodyproblems.input.action.AxisInputAction;
 import ch.nbodyproblems.rendering.material.Material;
@@ -14,9 +15,14 @@ import ch.nbodyproblems.rendering.scene.objects.Cube;
 import ch.nbodyproblems.rendering.scene.objects.CubeSphere;
 import ch.nbodyproblems.rendering.scene.objects.PolyLine;
 import ch.nbodyproblems.rendering.scene.objects.Quad;
+import ch.nbodyproblems.ui.CameraUI;
+import ch.nbodyproblems.ui.UI;
+import com.spinyowl.legui.system.context.CallbackKeeper;
+import com.spinyowl.legui.system.context.DefaultCallbackKeeper;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
@@ -54,13 +60,16 @@ public class Renderer {
     private int depthTexture;
 
     private InputSystem inputSystem;
+    private final InputContext activeInputContext = EDITOR_VIEW;
+    private final CallbackKeeper callbacks = new DefaultCallbackKeeper();
+    private UI gui;
 
     public Renderer(int initialWidth, int initialHeight) {
         this.width = initialWidth;
         this.height = initialHeight;
         float aspectRatio = (float) initialWidth / initialHeight;
         camera = new PerspectiveCamera(0.1f, 1e4f, aspectRatio, 60f);
-        camera.setPosition(0f, 0f, 5f);
+        camera.setPosition(0, 0, 10);
     }
 
     public void init() {
@@ -74,12 +83,14 @@ public class Renderer {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_DEPTH_BITS, 0);
+        glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
         window = glfwCreateWindow(width, height, "NBP", NULL, NULL);
 
         if (window == NULL) throw new IllegalStateException("Unable to create GLFW window");
 
-        glfwSetFramebufferSizeCallback(window, (win, width, height) -> {
+        CallbackKeeper.registerCallbacks(window, callbacks);
+        callbacks.getChainFramebufferSizeCallback().add((win, width, height) -> {
             this.width = width;
             this.height = height;
             lastResizeNano = System.nanoTime();
@@ -100,16 +111,26 @@ public class Renderer {
 
         initFrameBuffer();
         initInputSystem();
+        gui = new UI(window, callbacks, inputSystem);
+        gui.registerScene(CameraUI.class, () -> new CameraUI(camera::reset, camera));
+        gui.switchScene(CameraUI.class);
         initScene();
         glfwShowWindow(window);
     }
 
     private void initInputSystem() {
-        inputSystem = new InputSystem(window);
+        inputSystem = new InputSystem(window, callbacks);
         inputSystem.requestContextSwitch(EDITOR_VIEW);
         inputSystem.addOnAction(CAMERA_RESET, camera::reset);
-        inputSystem.addOnAction(MOUSE_CAPTURE_TOGGLE, () -> inputSystem.setMouseCaptured(!inputSystem.isMouseCaptured()));
+        inputSystem.addOnAction(MOUSE_CAPTURE_TOGGLE, () -> {
+            boolean captured = !inputSystem.isMouseCaptured();
+            if (captured) {
+                gui.clearInteractionState();
+            }
+            inputSystem.setMouseCaptured(captured);
+        });
         inputSystem.addOnAction(MOUSE_CAPTURE_RELEASE, () -> inputSystem.setMouseCaptured(false));
+        inputSystem.executeContextSwitch();
     }
 
     private void initFrameBuffer() {
@@ -210,7 +231,9 @@ public class Renderer {
             lastFrameTime = nowNano;
 
             inputSystem.clearAxisActivations();
+            inputSystem.clearPressAndReleaseActivations();
             glfwPollEvents();
+            gui.tick(nowSeconds, delta);
             inputSystem.executeContextSwitch();
             inputSystem.tick(nowSeconds, delta);
 
@@ -219,26 +242,13 @@ public class Renderer {
                 continue;
             }
 
-            camera.moveLocal(
-                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_LATERAL),
-                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_VERTICAL),
-                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_LONGITUDINAL)
-            );
-            camera.rotate(
-                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_ROTATE_PITCH),
-                    inputSystem.getAxisActivation(AxisInputAction.CAMERA_ROTATE_YAW),
-                    0f
-            );
-            camera.updateViewProjection();
+            updateCameraTransform();
 
             if (frameBufferUpdateRequired()) {
                 updateFrameBuffer();
             }
 
-            glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-            glViewport(0, 0, framebufferWidth, framebufferHeight);
-            glClearColor(0f, 0f, 0f, 1f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            resetDrawState();
 
             for (GameObject object : sceneObjects) {
                 traverseSceneObjects(object, rootTransform, nowSeconds, delta);
@@ -254,8 +264,37 @@ public class Renderer {
                     GL_NEAREST
             );
 
+            gui.render(width, height);
             glfwSwapBuffers(window);
         }
+    }
+
+    private void resetDrawState() {
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glViewport(0, 0, framebufferWidth, framebufferHeight);
+        glClearColor(0f, 0f, 0f, 1f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_GREATER);
+        glDepthMask(true);
+        glDisable(GL_BLEND);
+        glDisable(GL_SCISSOR_TEST);
+        glDisable(GL_STENCIL_TEST);
+    }
+
+    private void updateCameraTransform() {
+        camera.moveLocal(
+                inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_LATERAL),
+                inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_VERTICAL),
+                inputSystem.getAxisActivation(AxisInputAction.CAMERA_MOVE_LONGITUDINAL)
+        );
+        camera.rotate(
+                inputSystem.getAxisActivation(AxisInputAction.CAMERA_ROTATE_PITCH),
+                inputSystem.getAxisActivation(AxisInputAction.CAMERA_ROTATE_YAW),
+                0f
+        );
+        camera.updateViewProjection();
     }
 
     private void traverseSceneObjects(GameObject object, Matrix4f parentTransform, double now, double delta) {
@@ -335,10 +374,12 @@ public class Renderer {
     }
 
     public void cleanup() {
+        if (gui != null) gui.destroy();
         for (GameObject object : sceneObjects) {
             cleanUpSceneObject(object);
         }
         destroyFrameBuffer();
+        if (window != NULL) Callbacks.glfwFreeCallbacks(window);
         glfwDestroyWindow(window);
         glfwTerminate();
     }

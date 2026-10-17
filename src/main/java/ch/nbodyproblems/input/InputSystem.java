@@ -3,15 +3,20 @@ package ch.nbodyproblems.input;
 import ch.nbodyproblems.input.action.AxisInputAction;
 import ch.nbodyproblems.input.action.InputAction;
 import ch.nbodyproblems.input.action.TriggerInputAction;
-import ch.nbodyproblems.input.axis.activation.ActivationType;
 import ch.nbodyproblems.input.axis.MouseAxis;
-import ch.nbodyproblems.input.binding.*;
+import ch.nbodyproblems.input.axis.activation.ActivationType;
+import ch.nbodyproblems.input.binding.AxisBinding;
+import ch.nbodyproblems.input.binding.AxisButtonBinding;
+import ch.nbodyproblems.input.binding.ButtonBinding;
+import ch.nbodyproblems.input.binding.InputBinding;
 import ch.nbodyproblems.input.button.InputButton;
 import ch.nbodyproblems.input.button.KeyCode;
 import ch.nbodyproblems.input.button.MouseButton;
 import ch.nbodyproblems.input.defaults.DefaultBindings;
 import ch.nbodyproblems.rendering.scene.Tickable;
+import com.spinyowl.legui.system.context.CallbackKeeper;
 import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector2d;
 
 import java.util.*;
@@ -30,6 +35,8 @@ public class InputSystem implements Tickable {
     private boolean focused;
 
     private final Set<TriggerInputAction> activeActions = new HashSet<>();
+    private final Set<InputButton> pressedButtons = new HashSet<>();
+    private final Set<InputButton> releasedButtons = new HashSet<>();
     private final Map<InputButton, Double> activeButtonTimes = new HashMap<>();
     private final Map<InputButton, Set<ButtonBinding>> buttonBindings = new HashMap<>();
     private final Map<InputButton, Set<AxisButtonBinding>> axisButtonBindings = new HashMap<>();
@@ -38,20 +45,30 @@ public class InputSystem implements Tickable {
     private final Map<InputAction, Set<InputBinding>> bindings = new HashMap<>();
 
     private InputContext activeContext;
+    @Setter
+    private InputContext guiContext;
     private InputContext requestedContext;
     private final HashMap<InputAction, Set<Runnable>> onActionCallback = new HashMap<>();
 
     private final Vector2d mousePosition = new Vector2d();
 
     public InputSystem(long window) {
+        this(window, null);
+    }
+
+    /**
+     * Adds input handlers to the same callback chains used by the GUI, regardless of GUI focus.
+     */
+    public InputSystem(long window, CallbackKeeper callbacks) {
         this.window = window;
         focused = glfwGetWindowAttrib(window, GLFW_FOCUSED) == GLFW_TRUE;
         setBindings(DefaultBindings.BINDINGS);
-        glfwSetKeyCallback(window, this::handleKey);
-        glfwSetCursorPosCallback(window, this::handleMouseMove);
-        glfwSetMouseButtonCallback(window, this::handleMouseButton);
-        glfwSetScrollCallback(window, this::handleScroll);
-        glfwSetWindowFocusCallback(window, this::handleFocus);
+
+        callbacks.getChainKeyCallback().add(this::handleKey);
+        callbacks.getChainCursorPosCallback().add(this::handleMouseMove);
+        callbacks.getChainMouseButtonCallback().add(this::handleMouseButton);
+        callbacks.getChainScrollCallback().add(this::handleScroll);
+        callbacks.getChainWindowFocusCallback().add(this::handleFocus);
 
         if (glfwRawMouseMotionSupported()) {
             glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
@@ -64,6 +81,9 @@ public class InputSystem implements Tickable {
         cursorModeChanging = true;
         mousePositionValid = false;
         clearAxisActivations();
+        if (captured) {
+            guiContext = null;
+        }
         try {
             glfwSetInputMode(window, GLFW_CURSOR, captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
             mouseCaptured = captured;
@@ -86,6 +106,9 @@ public class InputSystem implements Tickable {
 
     @Override
     public void tick(double time, double deltaTime) {
+        activatePressBindings();
+        activateReleaseBindings();
+
         double now = System.nanoTime() / 1e9;
 
         for (Map.Entry<InputButton, Double> entry : activeButtonTimes.entrySet()) {
@@ -154,38 +177,40 @@ public class InputSystem implements Tickable {
 
         if (action == GLFW_PRESS) {
             activeButtonTimes.put(mouseButton, System.nanoTime() / 1e9);
-
-            if (buttonBindings.containsKey(mouseButton)) {
-                activatePressBindings(mouseButton);
-            }
+            pressedButtons.add(mouseButton);
         } else if (action == GLFW_RELEASE) {
             activeButtonTimes.remove(mouseButton);
+            releasedButtons.add(mouseButton);
+        }
+    }
 
-            if (buttonBindings.containsKey(mouseButton)) {
-                activateReleaseBindings(mouseButton);
+    private void activateReleaseBindings() {
+        for (InputButton button : pressedButtons) {
+            if (!buttonBindings.containsKey(button)) continue;
+
+            for (ButtonBinding binding : buttonBindings.get(button)) {
+                activeActions.remove(binding.action());
+
+                if (binding.activationType() == ActivationType.RELEASE
+                        && onActionCallback.containsKey(binding.action())
+                        && !requiredModifierMissing(binding)) {
+                    onActionCallback.get(binding.action()).forEach(Runnable::run);
+                }
             }
         }
     }
 
-    private void activateReleaseBindings(InputButton button) {
-        for (ButtonBinding binding : buttonBindings.get(button)) {
-            activeActions.remove(binding.action());
+    private void activatePressBindings() {
+        for (InputButton button : pressedButtons) {
+            if (!buttonBindings.containsKey(button)) continue;
 
-            if (binding.activationType() == ActivationType.RELEASE
-                    && onActionCallback.containsKey(binding.action())
-                    && !requiredModifierMissing(binding)) {
-                onActionCallback.get(binding.action()).forEach(Runnable::run);
-            }
-        }
-    }
+            for (ButtonBinding binding : buttonBindings.get(button)) {
+                if (binding.activationType() != ActivationType.PRESS || requiredModifierMissing(binding)) continue;
 
-    private void activatePressBindings(InputButton button) {
-        for (ButtonBinding binding : buttonBindings.get(button)) {
-            if (binding.activationType() != ActivationType.PRESS || requiredModifierMissing(binding)) continue;
-
-            activeActions.add(binding.action());
-            if (onActionCallback.containsKey(binding.action())) {
-                onActionCallback.get(binding.action()).forEach(Runnable::run);
+                activeActions.add(binding.action());
+                if (onActionCallback.containsKey(binding.action())) {
+                    onActionCallback.get(binding.action()).forEach(Runnable::run);
+                }
             }
         }
     }
@@ -211,48 +236,35 @@ public class InputSystem implements Tickable {
     private void handleKey(long win, int key, int scancode, int action, int mods) {
         KeyCode keyCode = KeyCode.fromCode(key);
         if (action == GLFW_PRESS) {
-            handleKeyPressed(keyCode);
+            activeButtonTimes.put(keyCode, System.nanoTime() / 1e9);
+            pressedButtons.add(keyCode);
         } else if (action == GLFW_RELEASE) {
-            handleKeyReleased(keyCode);
-        }
-    }
-
-    private void handleKeyReleased(KeyCode keyCode) {
-        activeButtonTimes.remove(keyCode);
-        if (buttonBindings.containsKey(keyCode)) {
-            activateReleaseBindings(keyCode);
-        }
-    }
-
-    private void handleKeyPressed(KeyCode keyCode) {
-        activeButtonTimes.put(keyCode, System.nanoTime() / 1e9);
-        if (buttonBindings.containsKey(keyCode)) {
-            activatePressBindings(keyCode);
+            activeButtonTimes.remove(keyCode);
+            releasedButtons.add(keyCode);
         }
     }
 
     public void executeContextSwitch() {
-        if (requestedContext == null || requestedContext == activeContext) return;
+        InputContext newContext = guiContext != null ? guiContext : requestedContext;
+        if (newContext == null || newContext == activeContext) return;
 
-        if (!requestedContext.isMouseCaptureEnabled()) {
+        if (!newContext.isMouseCaptureEnabled()) {
             setMouseCaptured(false);
         }
+
         mousePositionValid = false;
-        clearAxisActivations();
-        activeContext = requestedContext;
+        activeContext = newContext;
         buttonBindings.clear();
         axisButtonBindings.clear();
         axisBindings.clear();
-        releaseKeys();
 
         for (Set<InputBinding> bindingSet : bindings.values()) {
             for (InputBinding binding : bindingSet) {
-                if (requestedContext.containsAction(binding.action())) {
+                if (newContext.containsAction(binding.action())) {
                     activateBinding(binding);
                 }
             }
         }
-        requestedContext = null;
     }
 
     public void requestContextSwitch(InputContext context) {
@@ -310,6 +322,11 @@ public class InputSystem implements Tickable {
 
     public void clearAxisActivations() {
         inputAxis.clear();
+    }
+
+    public void clearPressAndReleaseActivations() {
+        pressedButtons.clear();
+        releasedButtons.clear();
     }
 
     public void addOnAction(InputAction action, Runnable callback) {

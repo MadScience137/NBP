@@ -27,6 +27,9 @@ public class PerspectiveCamera {
     private Vector3d position = new Vector3d();
     private Quaterniond rotation = new Quaterniond();
 
+    @Setter
+    private double cameraSpeed = 1;
+
     public PerspectiveCamera(double nearCLip, double farCLip, double aspectRatio, double fov) {
         this.nearCLip = nearCLip;
         this.farCLip = farCLip;
@@ -44,8 +47,8 @@ public class PerspectiveCamera {
         position.add(x, y, z);
     }
 
-    public void move(Vector3d delta) {
-        position.add(delta);
+    public void move(Vector3dc delta) {
+        position.add(delta.mul(cameraSpeed, new Vector3d()));
     }
 
     public void moveLocal(double x, double y, double z) {
@@ -93,11 +96,20 @@ public class PerspectiveCamera {
     }
 
     public void reset() {
-        position.set(0, 0, 0);
+        position.set(0, 0, 10);
         rotation.identity();
     }
 
     public Vector3f getPosition() {
         return new Vector3f(position);
+    }
+
+    public Vector3dc getRotationDeg() {
+        Vector3d rad = rotation.getEulerAnglesYXZ(new Vector3d());
+        return new Vector3d(
+                Math.toDegrees(rad.x),
+                Math.toDegrees(rad.y),
+                Math.toDegrees(rad.z)
+        );
     }
 }
